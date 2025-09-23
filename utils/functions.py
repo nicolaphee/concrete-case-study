@@ -13,9 +13,10 @@ import pandas as pd
 
 from sklearn.utils.validation import has_fit_parameter
 
+from sklearn.metrics import make_scorer, root_mean_squared_error, mean_absolute_error, r2_score
 
 # crea la cartella per salvare i risultati
-img_dir = "06_results"
+img_dir = "07_results"
 os.makedirs(img_dir, exist_ok=True)
 
 #########################
@@ -192,3 +193,98 @@ def add_engineered_features(df):
     # df["Fine_Coarse"] = df["FineAggregateComp"] * df["CoarseAggregateComp"]
 
     return df
+
+
+
+###########################
+###   MODEL SELECTION   ###
+###########################
+
+def composite_score(scores):
+    alpha = 0.5  # peso per l'overfit gap
+    beta = 0  # peso per la deviazione standard 
+    train_rmse_mean = scores["train_rmse"].mean()
+    test_rmse_mean = scores["test_rmse"].mean()
+    test_rmse_std = scores["test_rmse"].std()
+    overfit_gap = test_rmse_mean - train_rmse_mean
+
+    return test_rmse_mean + alpha * overfit_gap + beta * test_rmse_std
+
+
+def cross_validate_models(
+    X_train, y_train,
+    models: dict,
+    preprocessor,
+    random_state,
+    composite_score,
+    sample_weighting: bool = False,
+):
+    """
+    Esegue cross-validation sui modelli forniti, calcolando metriche di performance e overfitting.
+    """
+    scoring = {
+        "rmse": make_scorer(lambda y_true, y_pred: root_mean_squared_error(y_true, y_pred, )),
+        "mae": make_scorer(mean_absolute_error),
+        "r2": make_scorer(r2_score)
+    }
+
+    cv = KFold(n_splits=5, shuffle=True, random_state=random_state)
+
+    results = []
+    all_scores = []  # per distribuzioni metriche
+
+    for name, model in models.items():
+        print(f"Training and evaluating {name}...")
+        pipe = Pipeline(steps=[("preprocess", preprocessor), ("model", model)])
+        if sample_weighting:
+            # calcola pesi sul target train
+            sample_weights = compute_sample_weights(y_train)
+            fit_params = make_fit_params(pipe, sample_weights)
+            scores = cross_validate(pipe, X_train, y_train, cv=cv, scoring=scoring, n_jobs=-1, return_train_score=True, params=fit_params)
+        else:
+            scores = cross_validate(pipe, X_train, y_train, cv=cv, scoring=scoring, n_jobs=-1, return_train_score=True)
+        
+        # Calcola composite score (per bilanciare accuratezza e overfitting)
+        train_rmse_mean = scores["train_rmse"].mean()
+        train_rmse_std = scores["train_rmse"].std()
+        test_rmse_mean = scores["test_rmse"].mean()
+        test_rmse_std = scores["test_rmse"].std()
+
+        # Salva medie e deviazioni standard
+        results.append({
+            "Model": name,
+            "MAE mean": scores["test_mae"].mean(),
+            "MAE std": scores["test_mae"].std(),
+            "R2 mean": scores["test_r2"].mean(),
+            "R2 std": scores["test_r2"].std(),
+            "RMSE mean": test_rmse_mean,
+            "RMSE std": test_rmse_std,
+            "RMSE mean train": train_rmse_mean,
+            "RMSE std train": train_rmse_std,
+            "Composite score": composite_score(scores),
+        })
+        
+        # Salva tutte le fold per grafici
+        for i in range(cv.get_n_splits()):
+            all_scores.append({
+                "Model": name, "Fold": i+1,
+                "RMSE": scores["train_rmse"][i],
+                "MAE": scores["train_mae"][i],
+                "R2": scores["train_r2"][i],
+                "Set": "Training"
+            })
+            all_scores.append({
+                "Model": name, "Fold": i+1,
+                "RMSE": scores["test_rmse"][i],
+                "MAE": scores["test_mae"][i],
+                "R2": scores["test_r2"][i],
+                "Set": "Validation"
+            })
+
+
+    # Tabella riassuntiva
+    # results_df = pd.DataFrame(results).sort_values("RMSE mean")
+    results_df = pd.DataFrame(results).sort_values("Composite score")
+    scores_df = pd.DataFrame(all_scores)
+
+    return results_df, scores_df
