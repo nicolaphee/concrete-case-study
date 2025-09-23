@@ -2,6 +2,8 @@ import sys
 sys.path.append("./utils")  # per importare funzioni da ../utils
 from functions import *
 
+from params import random_state, n_iter, apply_feature_eng, log_transform_target, sample_weighting
+
 from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
@@ -35,15 +37,6 @@ import joblib
 # # per ignorare warning
 # import warnings
 # warnings.filterwarnings("ignore")
-
-random_state = 42
-
-n_iter = 20  # numero di iterazioni per RandomizedSearchCV
-apply_feature_eng = True
-log_transform_target = True  # se True, applica log-transform al target
-sample_weighting = True  # se True, usa pesi campione
-if sample_weighting:
-    print("Usiamo pesi campione basati sui valori del target.")
 
 
 # ---------------------------
@@ -181,6 +174,9 @@ models = {
 if log_transform_target:
     print("Applichiamo log-transform al target.")
     models = {name: wrap_with_target_transformer(model) for name, model in models.items()}
+
+if sample_weighting:
+    print("Usiamo pesi campione basati sui valori del target quando necessario.")
 
 # ---------------------------
 # 6. Cross-validation - Prima valutazione modelli

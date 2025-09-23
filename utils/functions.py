@@ -1,3 +1,7 @@
+import sys
+sys.path.append("./utils")  # per importare funzioni da ../utils
+from params import img_dir
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -20,7 +24,6 @@ from sklearn.model_selection import train_test_split, cross_validate, KFold
 from sklearn.pipeline import Pipeline
 
 # crea la cartella per salvare i risultati
-img_dir = "07_results"
 os.makedirs(img_dir, exist_ok=True)
 
 #########################
@@ -203,6 +206,7 @@ def add_engineered_features(df):
 ###########################
 ###   MODEL SELECTION   ###
 ###########################
+
 
 def composite_score(scores):
     alpha = 0.5  # peso per l'overfit gap
