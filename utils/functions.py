@@ -15,6 +15,10 @@ from sklearn.utils.validation import has_fit_parameter
 
 from sklearn.metrics import make_scorer, root_mean_squared_error, mean_absolute_error, r2_score
 
+from sklearn.model_selection import train_test_split, cross_validate, KFold
+
+from sklearn.pipeline import Pipeline
+
 # crea la cartella per salvare i risultati
 img_dir = "07_results"
 os.makedirs(img_dir, exist_ok=True)
@@ -214,8 +218,8 @@ def composite_score(scores):
 def cross_validate_models(
     X_train, y_train,
     models: dict,
+    cv: KFold,
     preprocessor,
-    random_state,
     composite_score,
     sample_weighting: bool = False,
 ):
@@ -227,8 +231,6 @@ def cross_validate_models(
         "mae": make_scorer(mean_absolute_error),
         "r2": make_scorer(r2_score)
     }
-
-    cv = KFold(n_splits=5, shuffle=True, random_state=random_state)
 
     results = []
     all_scores = []  # per distribuzioni metriche

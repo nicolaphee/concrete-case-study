@@ -3,6 +3,11 @@
 
 # Data
 *.csv
+*.tsv
 
 # Pictures
 *.png
+
+# Models and models info
+*.pkl
+catboost_info/*

@@ -2,9 +2,7 @@ import sys
 sys.path.append("./utils")  # per importare funzioni da ../utils
 from functions import *
 
-from sklearn.model_selection import train_test_split, cross_validate, KFold
 from sklearn.preprocessing import StandardScaler, RobustScaler
-from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.dummy import DummyRegressor
@@ -187,11 +185,13 @@ if log_transform_target:
 # ---------------------------
 # 6. Cross-validation - Prima valutazione modelli
 # ---------------------------
+cv = KFold(n_splits=5, shuffle=True, random_state=random_state)
+
 results_df, scores_df = cross_validate_models(
     X_train, y_train,
     models,
-    preprocessor,
-    random_state,
+    cv=cv,
+    preprocessor=preprocessor,
     composite_score=composite_score,
     sample_weighting=sample_weighting,
 )
