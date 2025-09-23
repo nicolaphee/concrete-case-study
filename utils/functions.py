@@ -23,6 +23,8 @@ from sklearn.model_selection import train_test_split, cross_validate, KFold
 
 from sklearn.pipeline import Pipeline
 
+from sklearn.model_selection import RandomizedSearchCV
+
 # crea la cartella per salvare i risultati
 os.makedirs(img_dir, exist_ok=True)
 
@@ -241,7 +243,10 @@ def cross_validate_models(
 
     for name, model in models.items():
         print(f"Training and evaluating {name}...")
-        pipe = Pipeline(steps=[("preprocess", preprocessor), ("model", model)])
+        if isinstance(model, Pipeline): # when running on 
+            pipe = model
+        else:
+            pipe = Pipeline(steps=[("preprocess", preprocessor), ("model", model)])
         if sample_weighting:
             # calcola pesi sul target train
             sample_weights = compute_sample_weights(y_train)
@@ -294,3 +299,57 @@ def cross_validate_models(
     scores_df = pd.DataFrame(all_scores)
 
     return results_df, scores_df
+
+
+###########################
+###    MODEL TUNING     ###
+###########################
+
+def tune_hyperparameters(
+    X_train, y_train, 
+    top_models: list,
+    models: dict,
+    param_grids: dict,
+    preprocessor,
+    cv: KFold,
+    n_iter: int,
+    random_state: int,
+    sample_weighting: bool = False,
+):
+    """
+    Esegue RandomizedSearchCV sui modelli top selezionati.
+    Restituisce i migliori modelli e un sommario delle performance sul validation set.
+    """
+    best_pipelines = {}
+    for name in top_models:
+        print(f"========= Hyperparameter tuning of {name}...")
+        if name not in param_grids:
+            print(f"Skip tuning per {name} (nessuna griglia definita).")
+            continue
+
+        print(f"\nTuning iperparametri per {name}...")
+        pipe = Pipeline(steps=[("preprocess", preprocessor), ("model", models[name])])
+
+        search = RandomizedSearchCV(
+            pipe,
+            param_distributions=param_grids[name],
+            n_iter=n_iter,
+            cv=cv,
+            scoring="neg_root_mean_squared_error",
+            n_jobs=-1,
+            random_state=random_state,
+            return_train_score=True,
+        )
+        if sample_weighting:
+            sample_weights_train = compute_sample_weights(y_train)
+            fit_params_search = make_fit_params(pipe, sample_weights_train)
+            search.fit(X_train, y_train, **fit_params_search)
+        else:
+            search.fit(X_train, y_train)
+
+        print(f"Best params per {name}: {search.best_params_}")
+        print(f"Best CV RMSE: {-search.best_score_:.3f}")
+
+        best_pipelines[name] = search.best_estimator_
+
+    return best_pipelines

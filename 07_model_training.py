@@ -9,8 +9,6 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.dummy import DummyRegressor
 
-from sklearn.model_selection import RandomizedSearchCV
-
 import joblib
 
 # # per ignorare warning
@@ -108,129 +106,35 @@ if log_transform_target:
 top_models = results_df.sort_values("Composite score").head(3)["Model"].tolist()
 print(f"\nModelli finalisti per tuning: {top_models}")
 
-best_pipelines = {}
-for name in top_models:
-    print(f"========= Hyperparameter tuning of {name}...")
-    if name not in param_grids:
-        print(f"Skip tuning per {name} (nessuna griglia definita).")
-        continue
-
-    print(f"\nTuning iperparametri per {name}...")
-    pipe = Pipeline(steps=[("preprocess", preprocessor), ("model", models[name])])
-
-    search = RandomizedSearchCV(
-        pipe,
-        param_distributions=param_grids[name],
-        n_iter=n_iter,
-        cv=cv,
-        scoring="neg_root_mean_squared_error",
-        n_jobs=-1,
-        random_state=random_state,
-        return_train_score=True,
-    )
-    if sample_weighting:
-        sample_weights_train = compute_sample_weights(y_train)
-        fit_params_search = make_fit_params(pipe, sample_weights_train)
-        search.fit(X_train, y_train, **fit_params_search)
-    else:
-        search.fit(X_train, y_train)
-
-    print(f"Best params per {name}: {search.best_params_}")
-    print(f"Best CV RMSE: {-search.best_score_:.3f}")
-
-    best_pipelines[name] = search.best_estimator_
-
-summary = []
-for name, search in best_pipelines.items():
-    # # R^2 selection
-    # rmse_cv = -search.score(X_valid, y_valid)  # valutazione sul validation
-    # summary.append({"Model": name, "Validation R^2": rmse_cv})
-
-    # RMSE selection
-    y_pred_val = search.predict(X_valid)
-    rmse_val = root_mean_squared_error(y_valid, y_pred_val)
-    summary.append({"Model": name, "Validation RMSE": rmse_val})
-
-
-summary_df = pd.DataFrame(summary).sort_values("Validation RMSE")
-sns.barplot(x="Model", y="Validation RMSE", data=summary_df)
-plt.title("Prestazioni modelli dopo tuning")
-save_plot("tuning_summary.png")
-
+best_pipelines = tune_hyperparameters(
+    X_train, y_train, 
+    top_models=top_models,
+    models=models,
+    param_grids=param_grids,
+    preprocessor=preprocessor,
+    cv=cv,
+    n_iter=n_iter,
+    random_state=random_state,
+    sample_weighting=sample_weighting
+)
 
 # ---------------------------
 # 7ter. Comparazione modelli tunati (train vs validation)
 # ---------------------------
+results_tuned_df, scores_tuned_df = cross_validate_models(
+    X_train, y_train,
+    best_pipelines,
+    cv=cv,
+    preprocessor=preprocessor,
+    composite_score=composite_score,
+    sample_weighting=sample_weighting,
+)
+results_df.to_csv(os.path.join(img_dir, "models_summary.csv"), index=False)
+print(results_df)
 
-scoring = {
-    "rmse": make_scorer(lambda y_true, y_pred: root_mean_squared_error(y_true, y_pred)),
-    "mae": make_scorer(mean_absolute_error),
-    "r2": make_scorer(r2_score)
-}
-
-results_tuned = []
-all_scores_tuned = []
-
-for name, pipeline in best_pipelines.items():
-    print(f"Valutazione finale del modello tunato: {name}")
-    if sample_weighting:
-        # calcola pesi sul target train
-        sample_weights = compute_sample_weights(y_train)
-        fit_params = make_fit_params(pipeline, sample_weights)
-        scores = cross_validate(pipeline, X_train, y_train, cv=cv, scoring=scoring, n_jobs=-1, return_train_score=True, params=fit_params)
-    else:
-        scores = cross_validate(pipeline, X_train, y_train, cv=cv, scoring=scoring, n_jobs=-1, return_train_score=True)
-    
-    # Calcola composite score (per bilanciare accuratezza e overfitting)
-    train_rmse_mean = scores["train_rmse"].mean()
-    train_rmse_std = scores["train_rmse"].std()
-    test_rmse_mean = scores["test_rmse"].mean()
-    test_rmse_std = scores["test_rmse"].std()
-    # overfit_gap = test_rmse_mean - train_rmse_mean
-    # composite_score = test_rmse_mean + alpha * overfit_gap + beta * test_rmse_std
-
-    # Salva medie e deviazioni standard
-    results_tuned.append({
-        "Model": name,
-        "MAE mean": scores["test_mae"].mean(),
-        "MAE std": scores["test_mae"].std(),
-        "R2 mean": scores["test_r2"].mean(),
-        "R2 std": scores["test_r2"].std(),
-        "RMSE mean": test_rmse_mean,
-        "RMSE std": test_rmse_std,
-        "RMSE mean train": train_rmse_mean,
-        "RMSE std train": train_rmse_std,
-        # "Overfit gap": overfit_gap,
-        # "Composite score": composite_score,
-    })
-    
-    # Tutte le fold (train + validation)
-    for i in range(cv.get_n_splits()):
-        all_scores_tuned.append({
-            "Model": name, "Fold": i+1,
-            "RMSE": scores["train_rmse"][i],
-            "MAE": scores["train_mae"][i],
-            "R2": scores["train_r2"][i],
-            "Set": "Training"
-        })
-        all_scores_tuned.append({
-            "Model": name, "Fold": i+1,
-            "RMSE": scores["test_rmse"][i],
-            "MAE": scores["test_mae"][i],
-            "R2": scores["test_r2"][i],
-            "Set": "Validation"
-        })
-
-# Tabella riassuntiva
-results_tuned_df = pd.DataFrame(results_tuned).sort_values("RMSE mean")
-results_tuned_df.to_csv(os.path.join(img_dir, "tuned_models_summary.csv"), index=False)
-print(results_tuned_df)
-
-# ---------------------------
-# Visualizzazione distribuzioni metriche (train vs validation)
-# ---------------------------
-scores_tuned_df = pd.DataFrame(all_scores_tuned)
+# Visualizzazione distribuzioni delle metriche
 plot_performance_metrics(scores_tuned_df, results_tuned_df, out_prefix="tuned_")
+
 
 # ---------------------------
 # 8. Selezione finale sul best model
