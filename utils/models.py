@@ -63,6 +63,7 @@ models = {
     # "XGBoost": XGBRegressor(n_estimators=1000, learning_rate=0.05, max_depth=6, random_state=random_state),
     # "XGBoost": XGBRegressor(n_estimators=1000, learning_rate=0.025, max_depth=5, random_state=random_state),
     "XGBoost": XGBRegressor(n_estimators=1000, learning_rate=0.01, max_depth=4, random_state=random_state),
+    # "LightGBM": LGBMRegressor(n_estimators=1000, learning_rate=0.05, max_depth=-1, random_state=random_state),
 
     # Rete neurale
     # "MLP": Pipeline([("scaler", StandardScaler()), ("mlp", MLPRegressor(hidden_layer_sizes=(64, 32), max_iter=2000, random_state=random_state))])

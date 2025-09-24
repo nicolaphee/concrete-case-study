@@ -26,7 +26,6 @@ from sklearn.model_selection import RandomizedSearchCV
 
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer, IterativeImputer
 from sklearn.ensemble import RandomForestRegressor
 
 ###############################################
@@ -42,40 +41,53 @@ def add_engineered_features(df):
 
 
 def define_imputer_preprocessor(actual_features, random_state):
-    '''
-    Definisce un ColumnTransformer con strategie di imputazione diverse per gruppi di variabili.
-    - Variabili con code lunghe → Mediana
-    - Distribuzioni simmetriche e senza outlier forti → Media
-    - Variabili con molti zeri → Imputazione a 0
-    '''
-    # Liste di variabili per gruppo
-    median_features = [feat for feat in ["WaterComp", "W/C"] if feat in actual_features]
-    mean_features = [feat for feat in ["CementComp", "CoarseAggregateComp", "FineAggregateComp"] if feat in actual_features]
-    zero_features = [feat for feat in ["BlastFurnaceSlag", "FlyAshComp", "SuperplasticizerComp"] if feat in actual_features]
-    age_features = [feat for feat in ["AgeDays"] if feat in actual_features]
-
-    # Trasformatori specifici
-    median_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="median"))])
-    mean_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="mean"))])
-    zero_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="constant", fill_value=0))])
-    age_transformer = Pipeline([
-        ("imputer", IterativeImputer(
-            estimator=RandomForestRegressor(n_estimators=50, random_state=random_state),
-            max_iter=10,
-            random_state=random_state
-        ))
+    from sklearn.impute import SimpleImputer
+    numeric_transformer = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="median"))
     ])
 
-    # ColumnTransformer con strategie diverse
     preprocessor = ColumnTransformer(
-        transformers=[
-            ("median", median_transformer, median_features),
-            ("mean", mean_transformer, mean_features),
-            ("zero", zero_transformer, zero_features),
-            ("age", age_transformer, age_features),
-        ]
+        transformers=[("num", numeric_transformer, actual_features)]
     )
+
     return preprocessor
+    # '''
+    # Definisce un ColumnTransformer con strategie di imputazione diverse per gruppi di variabili.
+    # - Variabili con code lunghe → Mediana
+    # - Distribuzioni simmetriche e senza outlier forti → Media
+    # - Variabili con molti zeri → Imputazione a 0
+    # '''
+    # from sklearn.experimental import enable_iterative_imputer
+    # from sklearn.impute import SimpleImputer, IterativeImputer
+
+    # # Liste di variabili per gruppo
+    # median_features = [feat for feat in ["WaterComp", "W/C"] if feat in actual_features]
+    # mean_features = [feat for feat in ["CementComp", "CoarseAggregateComp", "FineAggregateComp"] if feat in actual_features]
+    # zero_features = [feat for feat in ["BlastFurnaceSlag", "FlyAshComp", "SuperplasticizerComp"] if feat in actual_features]
+    # age_features = [feat for feat in ["AgeDays"] if feat in actual_features]
+
+    # # Trasformatori specifici
+    # median_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="median"))])
+    # mean_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="mean"))])
+    # zero_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="constant", fill_value=0))])
+    # age_transformer = Pipeline([
+    #     ("imputer", IterativeImputer(
+    #         estimator=RandomForestRegressor(n_estimators=50, random_state=random_state),
+    #         max_iter=10,
+    #         random_state=random_state
+    #     ))
+    # ])
+
+    # # ColumnTransformer con strategie diverse
+    # preprocessor = ColumnTransformer(
+    #     transformers=[
+    #         ("median", median_transformer, median_features),
+    #         ("mean", mean_transformer, mean_features),
+    #         ("zero", zero_transformer, zero_features),
+    #         ("age", age_transformer, age_features),
+    #     ]
+    # )
+    # return preprocessor
 
 
 
@@ -362,9 +374,9 @@ def cross_validate_models(
 
     for name, model in models.items():
         print(f"Training and evaluating {name}...")
-        if isinstance(model, Pipeline): # when running on 
+        if isinstance(model, Pipeline) and "scaler" not in model.named_steps: # hyperparam tuning
             pipe = model
-        else:
+        else: # caso standard cross-validation iniziale
             pipe = Pipeline(steps=[("preprocess", preprocessor), ("model", model)])
         if sample_weighting:
             # calcola pesi sul target train
