@@ -40,6 +40,73 @@ def save_plot(filename, img_dir=img_dir):
     plt.close()
 
 
+def plot_distribution(df, col):
+    '''
+    Plotta la distribuzione di una colonna numerica con istogramma + boxplot + riquadro informativo.
+    '''
+    
+    num_rows = df.shape[0]
+
+    data = df[col].dropna()
+    missing = df[col].isnull().sum()
+    col_min, col_max = data.min(), data.max()
+    mean, median = data.mean(), data.median()
+    std = data.std()
+    skew = data.skew()
+    kurt = data.kurtosis()
+    perc5, perc95 = data.quantile(0.05), data.quantile(0.95)
+
+    # Creo la figura
+    plt.figure(figsize=(12,5))
+    plt.subplot(1,2,1)
+    sns.histplot(data, kde=True, bins=30)
+    plt.title(f"Distribuzione di {col}")
+
+    # Box con statistiche
+    stats_text = (f"Range: {col_min:.2f} - {col_max:.2f}\n"
+                f"5°-95° perc: {perc5:.2f} - {perc95:.2f}\n"
+                f"Media: {mean:.2f}, Mediana: {median:.2f}\n"
+                f"Std: {std:.2f}, Skew: {skew:.2f}, Kurt: {kurt:.2f}\n"
+                f"Valori mancanti: {missing} / {num_rows} ({(missing/num_rows)*100:.2f}%)")
+    plt.gca().text(0.95, 0.95, stats_text,
+                transform=plt.gca().transAxes,
+                fontsize=10,
+                verticalalignment='top',
+                horizontalalignment='right',
+                bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8))
+
+    plt.subplot(1,2,2)
+    sns.boxplot(x=data)
+    plt.title(f"Boxplot di {col}")
+
+
+def correlation_heatmap(df, num_cols):
+    """
+    Plotta la matrice di correlazione delle variabili numeriche.
+    """
+    plt.figure(figsize=(10,8))
+    sns.heatmap(df[num_cols].corr(), annot=True, cmap="coolwarm", fmt=".2f")
+    plt.title("Matrice di correlazione")
+    plt.xticks(rotation=25)
+    plt.yticks(rotation=55)
+    plt.close()
+
+
+def plot_univariate_scatter(df, col, target):
+    """
+    Plotta scatterplot tra Strength e una variabile numerica.
+    Aggiunge linea di regressione e calcola correlazione Pearson.
+    """
+    plt.figure(figsize=(7,5))
+    sns.scatterplot(x=df[col], y=df[target], alpha=0.6)
+    sns.regplot(x=df[col], y=df[target], scatter=False, color="red")
+    plt.title(f"{target} vs {col}")
+
+    # Calcolo correlazione Pearson
+    corr = df[[col, target]].corr().iloc[0,1]
+    plt.gca().text(0.05, 0.95, f"Corr: {corr:.2f}", transform=plt.gca().transAxes, fontsize=10, verticalalignment='top', bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8))
+
+
 def plot_performance_metrics(scores_df, results_df, out_prefix):
 
     # Boxplot per RMSE
@@ -255,7 +322,6 @@ def add_engineered_features(df):
     # df["Fine_Coarse"] = df["FineAggregateComp"] * df["CoarseAggregateComp"]
 
     return df
-
 
 
 ###########################
