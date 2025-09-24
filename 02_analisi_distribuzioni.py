@@ -6,6 +6,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
+# Directory di salvataggio immagini
+img_dir = "02_eda_plots"
+os.makedirs(img_dir, exist_ok=True)
+
 # Carica il dataset
 file_path = "dataset.csv"
 df_raw = pd.read_csv(file_path, sep=";")
@@ -20,13 +24,9 @@ print("Numero campioni, Numero campioni dropna, differenza:")
 print(df_raw.shape[0], df_dropna.shape[0], df_raw.shape[0] - df_dropna.shape[0])
 
 df = add_engineered_features(df_raw)
-
-# Directory di salvataggio immagini
-img_dir = "02_eda_plots"
-os.makedirs(img_dir, exist_ok=True)
+num_cols = df.select_dtypes(include=["int64", "float64"]).columns
 
 # Distribuzioni delle variabili
-num_cols = df.select_dtypes(include=["int64", "float64"]).columns
 for col in num_cols:
     plot_distribution(df, col)
     save_plot(f"distribution_{col.replace('/','div')}.png", img_dir=img_dir)

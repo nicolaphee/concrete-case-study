@@ -1,6 +1,5 @@
 import sys
 sys.path.append("./utils")  # per importare funzioni da ../utils
-from params import img_dir
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -25,8 +24,60 @@ from sklearn.pipeline import Pipeline
 
 from sklearn.model_selection import RandomizedSearchCV
 
-# crea la cartella per salvare i risultati
-os.makedirs(img_dir, exist_ok=True)
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer, IterativeImputer
+from sklearn.ensemble import RandomForestRegressor
+
+###############################################
+###  PREPROCESSING & FEATURES ENGINEERING   ###
+###############################################
+
+def add_engineered_features(df):
+    df = df.copy()
+    
+    df["W/C"] = df["WaterComp"] / (df["CementComp"] + 1e-6)
+
+    return df
+
+
+def define_imputer_preprocessor(actual_features, random_state):
+    '''
+    Definisce un ColumnTransformer con strategie di imputazione diverse per gruppi di variabili.
+    - Variabili con code lunghe → Mediana
+    - Distribuzioni simmetriche e senza outlier forti → Media
+    - Variabili con molti zeri → Imputazione a 0
+    '''
+    # Liste di variabili per gruppo
+    median_features = [feat for feat in ["WaterComp", "W/C"] if feat in actual_features]
+    mean_features = [feat for feat in ["CementComp", "CoarseAggregateComp", "FineAggregateComp"] if feat in actual_features]
+    zero_features = [feat for feat in ["BlastFurnaceSlag", "FlyAshComp", "SuperplasticizerComp"] if feat in actual_features]
+    age_features = [feat for feat in ["AgeDays"] if feat in actual_features]
+
+    # Trasformatori specifici
+    median_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="median"))])
+    mean_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="mean"))])
+    zero_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="constant", fill_value=0))])
+    age_transformer = Pipeline([
+        ("imputer", IterativeImputer(
+            estimator=RandomForestRegressor(n_estimators=50, random_state=random_state),
+            max_iter=10,
+            random_state=random_state
+        ))
+    ])
+
+    # ColumnTransformer con strategie diverse
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("median", median_transformer, median_features),
+            ("mean", mean_transformer, mean_features),
+            ("zero", zero_transformer, zero_features),
+            ("age", age_transformer, age_features),
+        ]
+    )
+    return preprocessor
+
+
 
 #########################
 ### FUNZIONI GRAFICHE ###
@@ -89,7 +140,6 @@ def correlation_heatmap(df, num_cols):
     plt.title("Matrice di correlazione")
     plt.xticks(rotation=25)
     plt.yticks(rotation=55)
-    plt.close()
 
 
 def plot_univariate_scatter(df, col, target):
@@ -272,55 +322,6 @@ log_transformer = FunctionTransformer(np.log1p, np.expm1, validate=True)
 
 def wrap_with_target_transformer(model):
     return TransformedTargetRegressor(regressor=model, transformer=log_transformer)
-
-
-#############################
-### FEATURES ENGINEERING  ###
-#############################
-
-def add_engineered_features(df):
-    df = df.copy()
-    # df["Binder"] = df[["CementComp", "BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1)
-    # df["AggT"] = df[["CoarseAggregateComp", "FineAggregateComp", ]].sum(axis=1)
-    # df["Tot"] = df[["Binder", "WaterComp", "SuperplasticizerComp", "AggT", ]].sum(axis=1)
-    
-    df["W/C"] = df["WaterComp"] / (df["CementComp"] + 1e-6)
-    # df["W/B"] = df["WaterComp"] / (df["Binder"] + 1e-6)
-    # df["(W/B)^2"] = df["W/B"] ** 2
-
-    # df["SP/B"] = df["SuperplasticizerComp"] / (df["Binder"] + 1e-6)
-    # df["S%"] = df["BlastFurnaceSlag"] / (df["Binder"] + 1e-6)
-    # df["F%"] = df["FlyAshComp"] / (df["Binder"] + 1e-6)
-    # df["SCM%"] = (df["BlastFurnaceSlag"] + df["FlyAshComp"]) / (df["Binder"] + 1e-6)
-    # df["Binder%"] = df["Binder"] / (df["Tot"] + 1e-6)
-    # # df["AggT"]
-    # df["AggT/Tot"] = df["AggT"] / (df["Tot"] + 1e-6)
-    # df["Sand%"] = df["FineAggregateComp"] / (df["AggT"] + 1e-6)
-    # df["Coarse/Fine"] = df["CoarseAggregateComp"] / (df["FineAggregateComp"] + 1e-6)
-    # df["AggT/Paste"] = df["AggT"] / (df["Binder"] + df["WaterComp"] + df["SuperplasticizerComp"] + 1e-6)
-    # df["logAge"] = np.log1p(df["AgeInDays"])
-    # df["sqrtAge"] = np.sqrt(df["AgeInDays"])
-    # df["Indicator_Age_7-"] = (df["AgeInDays"] < 7).astype(int)
-    # df["Indicator_Age_7_28"] = ((df["AgeInDays"] >= 7) & (df["AgeInDays"] < 28)).astype(int)
-    # df["Indicator_Age_28+"] = (df["AgeInDays"] >= 28).astype(int)
-    # df["SCM%_logAge"] = df["SCM%"] * df["logAge"]
-    # df["SP/B_W/B"] = df["SP/B"] * df["W/B"]
-    # df["W/B_Binder%"] = df["W/B"] * df["Binder%"]
-    # df["W/B_Sand%"] = df["W/B"] * df["Sand%"]
-
-    # df = df.drop(columns=["Binder", "Tot", ])
-    # df = df.drop(columns=["AggT"])
-
-    # # Interazioni
-    # df["Water_Cement"] = df["WaterComp"] * df["CementComp"] 
-    # df["Water_Superplasticizer"] = df["WaterComp"] * df["SuperplasticizerComp"]
-    # df["Age_Cement"] = df["AgeInDays"] * df["CementComp"]
-    # df["Age_Superplasticizer"] = df["AgeInDays"] * df["SuperplasticizerComp"]
-    # df["Cement_FlyAsh"] = df["CementComp"] * df["FlyAshComp"]
-    # df["Cement_BlastFurnaceSlag"] = df["CementComp"] * df["BlastFurnaceSlag"]
-    # df["Fine_Coarse"] = df["FineAggregateComp"] * df["CoarseAggregateComp"]
-
-    return df
 
 
 ###########################

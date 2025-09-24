@@ -1,6 +1,9 @@
 import sys
 sys.path.append("./utils")  # per importare funzioni da ../utils
-from functions import add_engineered_features, composite_score, plot_performance_metrics, wrap_with_target_transformer, cross_validate_models, tune_hyperparameters, select_best_tuned_model, fit_final_model, plot_final_model_diagnostics
+from functions import plot_performance_metrics, plot_final_model_diagnostics
+from functions import add_engineered_features, define_imputer_preprocessor, wrap_with_target_transformer
+from functions import composite_score, cross_validate_models, tune_hyperparameters, select_best_tuned_model, fit_final_model
+
 import pandas as pd
 import numpy as np
 import os
@@ -37,12 +40,19 @@ df = df.drop(columns=["Unnamed: 0", "id"])
 df.columns = df.columns.str.replace("Component", "Comp", regex=True)
 
 # ---------------------------
-# 2. Train/test split
+# 2. Feature Engineering
 # ---------------------------
 target = "Strength"
 X = df.drop(columns=[target,])
 y = df[target]
 
+if apply_feature_eng:
+    X = add_engineered_features(X)
+    # X = X.drop(columns=[])
+
+# ---------------------------
+# 3. Train/test split
+# ---------------------------
 X_trainval, X_test, y_trainval, y_test = train_test_split(
     X, y, test_size=0.15, random_state=random_state
 )
@@ -51,27 +61,10 @@ X_train, X_valid, y_train, y_valid = train_test_split(
 )  # 0.15/0.85 = 0.1765 ≈ 15% of total
 
 # ---------------------------
-# 3. Feature Engineering
-# ---------------------------
-
-
-if apply_feature_eng:
-    X_train = add_engineered_features(X_train)
-    X_valid = add_engineered_features(X_valid)
-    X_test = add_engineered_features(X_test)
-    X_trainval = add_engineered_features(X_trainval)
-
-# ---------------------------
 # 4. Preprocessing pipeline
 # ---------------------------
 num_features = X_train.columns
-numeric_transformer = Pipeline(steps=[
-    ("imputer", SimpleImputer(strategy="median"))
-])
-
-preprocessor = ColumnTransformer(
-    transformers=[("num", numeric_transformer, num_features)]
-)
+preprocessor = define_imputer_preprocessor(num_features, random_state)
 
 # ---------------------------
 # 5. Definizione modelli
