@@ -475,7 +475,7 @@ def generate_shap_report(final_pipe, X_sample):
         mean_abs = np.mean(np.abs(values))
         mean_val = np.mean(values)
 
-        # Classificazione dell'impatto
+        # Classificazione importanza
         if mean_abs >= 2:
             impatto = "Alto impatto"
         elif mean_abs >= 1:
@@ -483,21 +483,41 @@ def generate_shap_report(final_pipe, X_sample):
         else:
             impatto = "Impatto debole"
 
-        # Direzione dell'effetto
+        # Direzione principale
         if mean_val > 0.05:
-            effetto = "Valori alti → Strength ↑"
-            indicazione = f"{impatto}: aumentare {feat} tende ad aumentare la resistenza."
+            direzione = "Valori alti → Strength ↑"
         elif mean_val < -0.05:
-            effetto = "Valori alti → Strength ↓"
-            indicazione = f"{impatto}: valori elevati di {feat} tendono a ridurre la resistenza."
+            direzione = "Valori alti → Strength ↓"
         else:
-            effetto = "Effetto ambiguo / bilanciato"
-            indicazione = f"{impatto}: {feat} non mostra una direzione chiara sull’impatto."
+            direzione = "Effetto ambiguo / bilanciato"
+
+        # Analisi forma della relazione con quantili
+        try:
+            quantiles = pd.qcut(X_sample[feat], q=3, duplicates="drop")
+            mean_by_bin = pd.DataFrame({"bin": quantiles, "shap": values}).groupby("bin").mean()
+
+            if mean_by_bin["shap"].is_monotonic_increasing:
+                forma = "Relazione monotona crescente"
+            elif mean_by_bin["shap"].is_monotonic_decreasing:
+                forma = "Relazione monotona decrescente"
+            else:
+                forma = "Relazione non monotona / effetto soglia"
+        except Exception:
+            forma = "Relazione non stimabile (dati costanti o pochi valori)"
+
+        # Indicazione pratica
+        if "↑" in direzione:
+            indicazione = f"{impatto}: aumentare {feat} tende ad aumentare la resistenza ({forma})."
+        elif "↓" in direzione:
+            indicazione = f"{impatto}: valori elevati di {feat} tendono a ridurre la resistenza ({forma})."
+        else:
+            indicazione = f"{impatto}: {feat} non mostra una direzione chiara ({forma})."
 
         summary.append({
             "Feature": feat,
             "Importanza media SHAP": round(mean_abs, 2),
-            "Osservazione": effetto,
+            "Osservazione": direzione,
+            "Relazione stimata": forma,
             "Indicazione pratica": indicazione
         })
 

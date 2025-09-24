@@ -70,6 +70,6 @@ save_plot("beeswarm_plot.png", img_dir=img_dir)
 
 # Dependence plot su features ingegnerizzata (esempio: W/C)
 for feat in X.columns:
-    shap.plots.scatter(shap_values[:, feat], color=shap_values)
+    shap.plots.scatter(shap_values[:, feat], color=shap_values[:, feat])
     plt.title(f"SHAP Feature effects (dependence) - {feat}")
     save_plot(f"dependence_plot_{feat.replace('/', 'div')}.png", img_dir=img_dir)
