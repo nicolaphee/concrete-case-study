@@ -104,6 +104,59 @@ def plot_performance_metrics(scores_df, results_df, out_prefix):
     save_plot(f"{out_prefix}overfitting_vs_generalization.png")
 
 
+def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name):
+    """
+    Grafici diagnostici per il modello finale sul test set.
+    """
+    
+    # Residui
+    y_pred = final_pipe.predict(X_test)
+    residui = y_test - y_pred
+
+    plt.figure(figsize=(6, 4))
+    plt.scatter(y_pred, residui, alpha=0.7)
+    plt.axhline(0, color="red", linestyle="--")
+    plt.xlabel("Valori predetti")
+    plt.ylabel("Residui (y_true - y_pred)")
+    plt.title(f"Residui - {best_model_name}")
+    save_plot("predetti_vs_residui.png")
+
+    # Confronto predetti vs osservati
+    plt.figure(figsize=(6, 6))
+    plt.scatter(y_test, y_pred, alpha=0.7)
+    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], "r--")
+    plt.xlabel("Osservati (y_true)")
+    plt.ylabel("Predetti (y_pred)")
+    plt.title(f"Osservati vs Predetti - {best_model_name}")
+    save_plot("predetti_vs_osservati.png")
+
+    # Distribuzione residui
+    plt.figure(figsize=(8, 5))
+    sns.histplot(residui, bins=30, kde=True)
+    plt.axvline(0, color="red", linestyle="--")
+    plt.xlabel("Residuo (y_true - y_pred)")
+    plt.ylabel("Conteggio")
+    plt.title(f"Distribuzione residui - {best_model_name}")
+    plt.tight_layout()
+    save_plot("residui_hist.png")
+
+    # Residui vs feature chiave (es. AgeInDays, rapporto W/C se presenti)
+    key_features = []
+    for feat in ["AgeInDays", "SuperplasticizerComp", "W/C"]:
+        if feat in X_test.columns:
+            key_features.append(feat)
+
+    for feat in key_features:
+        plt.figure(figsize=(6, 4))
+        plt.scatter(X_test[feat], residui, alpha=0.7)
+        plt.axhline(0, color="red", linestyle="--")
+        plt.xlabel(feat)
+        plt.ylabel("Residui")
+        plt.title(f"Residui vs {feat} - {best_model_name}")
+        plt.tight_layout()
+        save_plot(f"residui_vs_{feat.replace('/', 'div')}.png")
+
+
 ##########################
 ###  SAMPLE WEIGHTING  ###
 ##########################
@@ -211,7 +264,7 @@ def add_engineered_features(df):
 
 
 def composite_score(scores):
-    alpha = 0.5  # peso per l'overfit gap
+    alpha = 1  # peso per l'overfit gap
     beta = 0  # peso per la deviazione standard 
     train_rmse_mean = scores["train_rmse"].mean()
     test_rmse_mean = scores["test_rmse"].mean()
@@ -353,3 +406,48 @@ def tune_hyperparameters(
         best_pipelines[name] = search.best_estimator_
 
     return best_pipelines
+
+
+def select_best_tuned_model(
+    best_pipelines: dict,
+    X_train, y_train,
+    X_valid, y_valid,
+):
+    """
+    Valuta i modelli tunati sul validation set e seleziona il migliore.
+    """
+
+    # Valuta i finalisti tunati sul validation set
+    validation_scores = []
+    for name, pipe in best_pipelines.items():
+        pipe.fit(X_train, y_train)
+        y_val_pred = pipe.predict(X_valid)
+        rmse_val = root_mean_squared_error(y_valid, y_val_pred)
+        validation_scores.append((name, rmse_val))
+        print(f"{name} - Validation RMSE = {rmse_val:.3f}")
+
+    # Scegli il modello col miglior RMSE
+    best_model_name, _ = sorted(validation_scores, key=lambda x: x[1])[0]
+    print(f"\nMiglior modello (tuning): {best_model_name}")
+    final_pipe = best_pipelines[best_model_name]
+
+    return final_pipe, best_model_name
+
+
+def fit_final_model(
+    final_pipe,
+    X_trainval, y_trainval,
+    sample_weighting: bool
+):
+    if sample_weighting:
+        sample_weights_trainval = compute_sample_weights(y_trainval)
+        final_fit_params = make_fit_params(final_pipe, sample_weights_trainval)
+        final_pipe.fit(X_trainval, y_trainval, **final_fit_params)
+    else:
+        final_pipe.fit(X_trainval, y_trainval)
+
+    if sample_weighting:
+        print("mean weight:", float(sample_weights_trainval.mean()))
+        print("supports weights?:", has_fit_parameter(final_pipe.named_steps["model"], "sample_weight"))
+
+    return final_pipe
