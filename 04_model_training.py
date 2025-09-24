@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
-img_dir = "04c_model_comparison_plots"
+img_dir = "04_model_comparison_plots"
 os.makedirs(img_dir, exist_ok=True)
 
 random_state = 42
