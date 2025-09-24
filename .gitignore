@@ -4,6 +4,7 @@
 # Data
 *.csv
 *.tsv
+*.xlsx
 
 # Pictures
 *.png

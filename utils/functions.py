@@ -1,6 +1,5 @@
 import sys
 sys.path.append("./utils")  # per importare funzioni da ../utils
-from params import img_dir
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -25,22 +24,149 @@ from sklearn.pipeline import Pipeline
 
 from sklearn.model_selection import RandomizedSearchCV
 
-# crea la cartella per salvare i risultati
-os.makedirs(img_dir, exist_ok=True)
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestRegressor
+
+###############################################
+###  PREPROCESSING & FEATURES ENGINEERING   ###
+###############################################
+
+def add_engineered_features(df):
+    df = df.copy()
+    
+    df["W/C"] = df["WaterComp"] / (df["CementComp"] + 1e-6)
+    # df["BlastFurnaceSlag_Indicator"] = df["BlastFurnaceSlag"] > 0
+    # df["FlyAshComp_Indicator"] = df["FlyAshComp"] > 0
+    # df["SuperplasticizerComp_Indicator"] = df["SuperplasticizerComp"] > 5
+
+    return df
+
+
+def define_imputer_preprocessor(actual_features, random_state, use_simple_imputer=True):
+    '''
+    Definisce un ColumnTransformer imputer che imputa con la mediana se use_simple_imputer=False,
+    altrimenti con strategie di imputazione diverse per gruppi di variabili.
+    - Variabili con code lunghe → Mediana
+    - Distribuzioni simmetriche e senza outlier forti → Media
+    - Variabili con molti zeri → Imputazione a 0
+    '''
+    if use_simple_imputer:
+        from sklearn.impute import SimpleImputer
+        numeric_transformer = Pipeline(steps=[
+            ("imputer", SimpleImputer(strategy="median"))
+        ])
+
+        preprocessor = ColumnTransformer(
+            transformers=[("num", numeric_transformer, actual_features)]
+        )
+
+        return preprocessor
+    else:
+        from sklearn.experimental import enable_iterative_imputer
+        from sklearn.impute import SimpleImputer, IterativeImputer
+
+        # Liste di variabili per gruppo
+        median_features = [feat for feat in ["AgeDays", "WaterComp", "W/C"] if feat in actual_features]
+        mean_features = [feat for feat in ["CementComp", "CoarseAggregateComp", "FineAggregateComp", ] if feat in actual_features]
+        zero_features = [feat for feat in ["BlastFurnaceSlag", "FlyAshComp", "SuperplasticizerComp"] if feat in actual_features]
+
+        # Trasformatori specifici
+        median_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="median"))])
+        mean_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="mean"))])
+        zero_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="constant", fill_value=0))])
+
+        # ColumnTransformer con strategie diverse
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ("median", median_transformer, median_features),
+                ("mean", mean_transformer, mean_features),
+                ("zero", zero_transformer, zero_features),
+            ]
+        )
+        return preprocessor
+
+
 
 #########################
 ### FUNZIONI GRAFICHE ###
 #########################
 
 
-def save_plot(filename, img_dir=img_dir):
+def save_plot(filename, img_dir):
     plt.tight_layout()
     out_path = os.path.join(img_dir, filename)
     plt.savefig(out_path)
     plt.close()
 
 
-def plot_performance_metrics(scores_df, results_df, out_prefix):
+def plot_distribution(df, col):
+    '''
+    Plotta la distribuzione di una colonna numerica con istogramma + boxplot + riquadro informativo.
+    '''
+    
+    num_rows = df.shape[0]
+
+    data = df[col].dropna()
+    missing = df[col].isnull().sum()
+    col_min, col_max = data.min(), data.max()
+    mean, median = data.mean(), data.median()
+    std = data.std()
+    skew = data.skew()
+    kurt = data.kurtosis()
+    perc5, perc95 = data.quantile(0.05), data.quantile(0.95)
+
+    # Creo la figura
+    plt.figure(figsize=(12,5))
+    plt.subplot(1,2,1)
+    sns.histplot(data, kde=True, bins=30)
+    plt.title(f"Distribuzione di {col}")
+
+    # Box con statistiche
+    stats_text = (f"Range: {col_min:.2f} - {col_max:.2f}\n"
+                f"5°-95° perc: {perc5:.2f} - {perc95:.2f}\n"
+                f"Media: {mean:.2f}, Mediana: {median:.2f}\n"
+                f"Std: {std:.2f}, Skew: {skew:.2f}, Kurt: {kurt:.2f}\n"
+                f"Valori mancanti: {missing} / {num_rows} ({(missing/num_rows)*100:.2f}%)")
+    plt.gca().text(0.95, 0.95, stats_text,
+                transform=plt.gca().transAxes,
+                fontsize=10,
+                verticalalignment='top',
+                horizontalalignment='right',
+                bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8))
+
+    plt.subplot(1,2,2)
+    sns.boxplot(x=data)
+    plt.title(f"Boxplot di {col}")
+
+
+def correlation_heatmap(df, num_cols):
+    """
+    Plotta la matrice di correlazione delle variabili numeriche.
+    """
+    plt.figure(figsize=(10,8))
+    sns.heatmap(df[num_cols].corr(), annot=True, cmap="coolwarm", fmt=".2f")
+    plt.title("Matrice di correlazione")
+    plt.xticks(rotation=25)
+    plt.yticks(rotation=55)
+
+
+def plot_univariate_scatter(df, col, target):
+    """
+    Plotta scatterplot tra Strength e una variabile numerica.
+    Aggiunge linea di regressione e calcola correlazione Pearson.
+    """
+    plt.figure(figsize=(7,5))
+    sns.scatterplot(x=df[col], y=df[target], alpha=0.6)
+    sns.regplot(x=df[col], y=df[target], scatter=False, color="red")
+    plt.title(f"{target} vs {col}")
+
+    # Calcolo correlazione Pearson
+    corr = df[[col, target]].corr().iloc[0,1]
+    plt.gca().text(0.05, 0.95, f"Corr: {corr:.2f}", transform=plt.gca().transAxes, fontsize=10, verticalalignment='top', bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8))
+
+
+def plot_performance_metrics(scores_df, results_df, out_prefix, img_dir):
 
     # Boxplot per RMSE
     plt.figure(figsize=(10, 6))
@@ -50,7 +176,7 @@ def plot_performance_metrics(scores_df, results_df, out_prefix):
     plt.title(f"Distribuzione RMSE per modello (CV folds)" if len(out_prefix) == 0 else f"Distribuzione RMSE per modello (CV folds) - {out_prefix}")
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles[0:2], labels[0:2], title="Set")
-    save_plot(f"{out_prefix}boxplot_rmse.png")
+    save_plot(f"{out_prefix}boxplot_rmse.png", img_dir)
 
     # Boxplot per MAE
     plt.figure(figsize=(10, 6))
@@ -60,7 +186,7 @@ def plot_performance_metrics(scores_df, results_df, out_prefix):
     plt.title(f"Distribuzione MAE per modello (CV folds) - {out_prefix}")
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles[0:2], labels[0:2], title="Set")
-    save_plot(f"{out_prefix}boxplot_mae.png")
+    save_plot(f"{out_prefix}boxplot_mae.png", img_dir)
 
     # Boxplot per R²
     plt.figure(figsize=(10, 6))
@@ -70,7 +196,7 @@ def plot_performance_metrics(scores_df, results_df, out_prefix):
     plt.title(f"Distribuzione R² per modello (CV folds) - {out_prefix}")
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles[0:2], labels[0:2], title="Set")
-    save_plot(f"{out_prefix}boxplot_r2.png")
+    save_plot(f"{out_prefix}boxplot_r2.png", img_dir)
 
     # Scatter plot RMSE train vs RMSE validation con barre di errore
     plt.figure(figsize=(8, 6))
@@ -101,10 +227,10 @@ def plot_performance_metrics(scores_df, results_df, out_prefix):
     plt.ylabel("RMSE Validation (mean ± std)")
     plt.title(f"Overfitting vs Generalizzazione (con deviazione standard) - {out_prefix}")
     plt.legend()
-    save_plot(f"{out_prefix}overfitting_vs_generalization.png")
+    save_plot(f"{out_prefix}overfitting_vs_generalization.png", img_dir)
 
 
-def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name):
+def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name, img_dir):
     """
     Grafici diagnostici per il modello finale sul test set.
     """
@@ -119,7 +245,7 @@ def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name):
     plt.xlabel("Valori predetti")
     plt.ylabel("Residui (y_true - y_pred)")
     plt.title(f"Residui - {best_model_name}")
-    save_plot("predetti_vs_residui.png")
+    save_plot("predetti_vs_residui.png", img_dir)
 
     # Confronto predetti vs osservati
     plt.figure(figsize=(6, 6))
@@ -128,23 +254,16 @@ def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name):
     plt.xlabel("Osservati (y_true)")
     plt.ylabel("Predetti (y_pred)")
     plt.title(f"Osservati vs Predetti - {best_model_name}")
-    save_plot("predetti_vs_osservati.png")
+    save_plot("predetti_vs_osservati.png", img_dir)
 
     # Distribuzione residui
-    plt.figure(figsize=(8, 5))
-    sns.histplot(residui, bins=30, kde=True)
-    plt.axvline(0, color="red", linestyle="--")
-    plt.xlabel("Residuo (y_true - y_pred)")
-    plt.ylabel("Conteggio")
-    plt.title(f"Distribuzione residui - {best_model_name}")
-    plt.tight_layout()
-    save_plot("residui_hist.png")
+    plot_distribution(residui.to_frame(name="Residuo (y_true - y_pred)"), "Residuo (y_true - y_pred)")
+    save_plot("residui_hist.png", img_dir)
 
-    # Residui vs feature chiave (es. AgeInDays, rapporto W/C se presenti)
+    # Residui vs features
     key_features = []
-    for feat in ["AgeInDays", "SuperplasticizerComp", "W/C"]:
-        if feat in X_test.columns:
-            key_features.append(feat)
+    for feat in X_test.columns:
+        key_features.append(feat)
 
     for feat in key_features:
         plt.figure(figsize=(6, 4))
@@ -154,7 +273,7 @@ def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name):
         plt.ylabel("Residui")
         plt.title(f"Residui vs {feat} - {best_model_name}")
         plt.tight_layout()
-        save_plot(f"residui_vs_{feat.replace('/', 'div')}.png")
+        save_plot(f"residui_vs_{feat.replace('/', 'div')}.png", img_dir)
 
 
 ##########################
@@ -208,56 +327,6 @@ def wrap_with_target_transformer(model):
     return TransformedTargetRegressor(regressor=model, transformer=log_transformer)
 
 
-#############################
-### FEATURES ENGINEERING  ###
-#############################
-
-def add_engineered_features(df):
-    df = df.copy()
-    # df["Binder"] = df[["CementComp", "BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1)
-    # df["AggT"] = df[["CoarseAggregateComp", "FineAggregateComp", ]].sum(axis=1)
-    # df["Tot"] = df[["Binder", "WaterComp", "SuperplasticizerComp", "AggT", ]].sum(axis=1)
-    
-    df["W/C"] = df["WaterComp"] / (df["CementComp"] + 1e-6)
-    # df["W/B"] = df["WaterComp"] / (df["Binder"] + 1e-6)
-    # df["(W/B)^2"] = df["W/B"] ** 2
-
-    # df["SP/B"] = df["SuperplasticizerComp"] / (df["Binder"] + 1e-6)
-    # df["S%"] = df["BlastFurnaceSlag"] / (df["Binder"] + 1e-6)
-    # df["F%"] = df["FlyAshComp"] / (df["Binder"] + 1e-6)
-    # df["SCM%"] = (df["BlastFurnaceSlag"] + df["FlyAshComp"]) / (df["Binder"] + 1e-6)
-    # df["Binder%"] = df["Binder"] / (df["Tot"] + 1e-6)
-    # # df["AggT"]
-    # df["AggT/Tot"] = df["AggT"] / (df["Tot"] + 1e-6)
-    # df["Sand%"] = df["FineAggregateComp"] / (df["AggT"] + 1e-6)
-    # df["Coarse/Fine"] = df["CoarseAggregateComp"] / (df["FineAggregateComp"] + 1e-6)
-    # df["AggT/Paste"] = df["AggT"] / (df["Binder"] + df["WaterComp"] + df["SuperplasticizerComp"] + 1e-6)
-    # df["logAge"] = np.log1p(df["AgeInDays"])
-    # df["sqrtAge"] = np.sqrt(df["AgeInDays"])
-    # df["Indicator_Age_7-"] = (df["AgeInDays"] < 7).astype(int)
-    # df["Indicator_Age_7_28"] = ((df["AgeInDays"] >= 7) & (df["AgeInDays"] < 28)).astype(int)
-    # df["Indicator_Age_28+"] = (df["AgeInDays"] >= 28).astype(int)
-    # df["SCM%_logAge"] = df["SCM%"] * df["logAge"]
-    # df["SP/B_W/B"] = df["SP/B"] * df["W/B"]
-    # df["W/B_Binder%"] = df["W/B"] * df["Binder%"]
-    # df["W/B_Sand%"] = df["W/B"] * df["Sand%"]
-
-    # df = df.drop(columns=["Binder", "Tot", ])
-    # df = df.drop(columns=["AggT"])
-
-    # # Interazioni
-    # df["Water_Cement"] = df["WaterComp"] * df["CementComp"] 
-    # df["Water_Superplasticizer"] = df["WaterComp"] * df["SuperplasticizerComp"]
-    # df["Age_Cement"] = df["AgeInDays"] * df["CementComp"]
-    # df["Age_Superplasticizer"] = df["AgeInDays"] * df["SuperplasticizerComp"]
-    # df["Cement_FlyAsh"] = df["CementComp"] * df["FlyAshComp"]
-    # df["Cement_BlastFurnaceSlag"] = df["CementComp"] * df["BlastFurnaceSlag"]
-    # df["Fine_Coarse"] = df["FineAggregateComp"] * df["CoarseAggregateComp"]
-
-    return df
-
-
-
 ###########################
 ###   MODEL SELECTION   ###
 ###########################
@@ -296,9 +365,9 @@ def cross_validate_models(
 
     for name, model in models.items():
         print(f"Training and evaluating {name}...")
-        if isinstance(model, Pipeline): # when running on 
+        if isinstance(model, Pipeline) and "scaler" not in model.named_steps: # hyperparam tuning
             pipe = model
-        else:
+        else: # caso standard cross-validation iniziale
             pipe = Pipeline(steps=[("preprocess", preprocessor), ("model", model)])
         if sample_weighting:
             # calcola pesi sul target train
@@ -451,3 +520,76 @@ def fit_final_model(
         print("supports weights?:", has_fit_parameter(final_pipe.named_steps["model"], "sample_weight"))
 
     return final_pipe
+
+
+###########################
+###  SHAP EXPLANATION   ###
+###########################
+
+def generate_shap_report(final_pipe, X_sample):
+    '''
+    Genera un report tabellare con osservazioni basate sui valori SHAP.
+    '''
+    
+    import shap
+
+    explainer = shap.Explainer(final_pipe.predict, X_sample)
+    shap_values = explainer(X_sample)
+
+    # Genera osservazioni automatiche
+    summary = []
+
+    for i, feat in enumerate(X_sample.columns):
+        values = shap_values[:, i].values
+        mean_abs = np.mean(np.abs(values))
+        mean_val = np.mean(values)
+
+        # Classificazione importanza
+        if mean_abs >= 2:
+            impatto = "Alto impatto"
+        elif mean_abs >= 1:
+            impatto = "Impatto moderato"
+        else:
+            impatto = "Impatto debole"
+
+        # Direzione principale
+        if mean_val > 0.05:
+            direzione = "Valori alti → Strength ↑"
+        elif mean_val < -0.05:
+            direzione = "Valori alti → Strength ↓"
+        else:
+            direzione = "Effetto ambiguo / bilanciato"
+
+        # Analisi forma della relazione con quantili
+        try:
+            quantiles = pd.qcut(X_sample[feat], q=3, duplicates="drop")
+            mean_by_bin = pd.DataFrame({"bin": quantiles, "shap": values}).groupby("bin").mean()
+
+            if mean_by_bin["shap"].is_monotonic_increasing:
+                forma = "Relazione monotona crescente"
+            elif mean_by_bin["shap"].is_monotonic_decreasing:
+                forma = "Relazione monotona decrescente"
+            else:
+                forma = "Relazione non monotona / effetto soglia"
+        except Exception:
+            forma = "Relazione non stimabile (dati costanti o pochi valori)"
+
+        # Indicazione pratica
+        if "↑" in direzione:
+            indicazione = f"{impatto}: aumentare {feat} tende ad aumentare la resistenza ({forma})."
+        elif "↓" in direzione:
+            indicazione = f"{impatto}: valori elevati di {feat} tendono a ridurre la resistenza ({forma})."
+        else:
+            indicazione = f"{impatto}: {feat} non mostra una direzione chiara ({forma})."
+
+        summary.append({
+            "Feature": feat,
+            "Importanza media SHAP": round(mean_abs, 2),
+            "Osservazione": direzione,
+            "Relazione stimata": forma,
+            "Indicazione pratica": indicazione
+        })
+
+    df_summary = pd.DataFrame(summary).sort_values("Importanza media SHAP", ascending=False)
+
+    return df_summary, shap_values
