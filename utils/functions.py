@@ -451,3 +451,56 @@ def fit_final_model(
         print("supports weights?:", has_fit_parameter(final_pipe.named_steps["model"], "sample_weight"))
 
     return final_pipe
+
+
+###########################
+###  SHAP EXPLANATION   ###
+###########################
+
+def generate_shap_report(final_pipe, X_sample):
+    '''
+    Genera un report tabellare con osservazioni basate sui valori SHAP.
+    '''
+    
+    import shap
+
+    explainer = shap.Explainer(final_pipe.predict, X_sample)
+    shap_values = explainer(X_sample)
+
+    # Genera osservazioni automatiche
+    summary = []
+
+    for i, feat in enumerate(X_sample.columns):
+        values = shap_values[:, i].values
+        mean_abs = np.mean(np.abs(values))
+        mean_val = np.mean(values)
+
+        # Classificazione dell'impatto
+        if mean_abs >= 2:
+            impatto = "Alto impatto"
+        elif mean_abs >= 1:
+            impatto = "Impatto moderato"
+        else:
+            impatto = "Impatto debole"
+
+        # Direzione dell'effetto
+        if mean_val > 0.05:
+            effetto = "Valori alti → Strength ↑"
+            indicazione = f"{impatto}: aumentare {feat} tende ad aumentare la resistenza."
+        elif mean_val < -0.05:
+            effetto = "Valori alti → Strength ↓"
+            indicazione = f"{impatto}: valori elevati di {feat} tendono a ridurre la resistenza."
+        else:
+            effetto = "Effetto ambiguo / bilanciato"
+            indicazione = f"{impatto}: {feat} non mostra una direzione chiara sull’impatto."
+
+        summary.append({
+            "Feature": feat,
+            "Importanza media SHAP": round(mean_abs, 2),
+            "Osservazione": effetto,
+            "Indicazione pratica": indicazione
+        })
+
+    df_summary = pd.DataFrame(summary).sort_values("Importanza media SHAP", ascending=False)
+
+    return df_summary, shap_values
