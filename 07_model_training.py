@@ -1,6 +1,13 @@
 import sys
 sys.path.append("./utils")  # per importare funzioni da ../utils
-from functions import *
+from functions import add_engineered_features, composite_score, plot_performance_metrics, wrap_with_target_transformer, cross_validate_models, tune_hyperparameters, select_best_tuned_model, fit_final_model, plot_final_model_diagnostics
+import pandas as pd
+import numpy as np
+import os
+from sklearn.model_selection import train_test_split, KFold
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+from sklearn.pipeline import Pipeline
+
 from models import models, param_grids
 
 from params import random_state, n_iter, apply_feature_eng, log_transform_target, sample_weighting
@@ -12,6 +19,9 @@ from sklearn.dummy import DummyRegressor
 import joblib
 
 import tabulate
+
+img_dir = "07_results"
+os.makedirs(img_dir, exist_ok=True)
 
 # # per ignorare warning
 # import warnings
@@ -91,7 +101,7 @@ results_df.to_csv(os.path.join(img_dir, "models_summary.csv"), index=False)
 print(results_df)
 
 # Visualizzazione distribuzioni delle metriche
-plot_performance_metrics(scores_df, results_df, out_prefix="")
+plot_performance_metrics(scores_df, results_df, out_prefix="", img_dir=img_dir)
 
 
 # ---------------------------
@@ -135,7 +145,7 @@ results_tuned_df.to_csv(os.path.join(img_dir, "models_summary.csv"), index=False
 print(results_tuned_df)
 
 # Visualizzazione distribuzioni delle metriche
-plot_performance_metrics(scores_tuned_df, results_tuned_df, out_prefix="tuned_")
+plot_performance_metrics(scores_tuned_df, results_tuned_df, out_prefix="tuned_", img_dir=img_dir)
 
 
 # ---------------------------
@@ -185,7 +195,7 @@ final_performance_df.to_csv(os.path.join(img_dir, "final_performance.csv"), inde
 # ---------------------------
 # 9. Error analysis
 # ---------------------------
-plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name)
+plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name, img_dir)
 
 # Top 10 errori maggiori (in valore assoluto)
 residui = y_test - y_test_pred

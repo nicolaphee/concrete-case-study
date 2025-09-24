@@ -5,4 +5,4 @@ apply_feature_eng = True
 log_transform_target = False  # se True, applica log-transform al target
 sample_weighting = True  # se True, usa pesi campione
 
-img_dir = "07_results"
+

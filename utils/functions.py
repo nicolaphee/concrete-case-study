@@ -33,7 +33,7 @@ os.makedirs(img_dir, exist_ok=True)
 #########################
 
 
-def save_plot(filename, img_dir=img_dir):
+def save_plot(filename, img_dir):
     plt.tight_layout()
     out_path = os.path.join(img_dir, filename)
     plt.savefig(out_path)
@@ -107,7 +107,7 @@ def plot_univariate_scatter(df, col, target):
     plt.gca().text(0.05, 0.95, f"Corr: {corr:.2f}", transform=plt.gca().transAxes, fontsize=10, verticalalignment='top', bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8))
 
 
-def plot_performance_metrics(scores_df, results_df, out_prefix):
+def plot_performance_metrics(scores_df, results_df, out_prefix, img_dir):
 
     # Boxplot per RMSE
     plt.figure(figsize=(10, 6))
@@ -117,7 +117,7 @@ def plot_performance_metrics(scores_df, results_df, out_prefix):
     plt.title(f"Distribuzione RMSE per modello (CV folds)" if len(out_prefix) == 0 else f"Distribuzione RMSE per modello (CV folds) - {out_prefix}")
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles[0:2], labels[0:2], title="Set")
-    save_plot(f"{out_prefix}boxplot_rmse.png")
+    save_plot(f"{out_prefix}boxplot_rmse.png", img_dir)
 
     # Boxplot per MAE
     plt.figure(figsize=(10, 6))
@@ -127,7 +127,7 @@ def plot_performance_metrics(scores_df, results_df, out_prefix):
     plt.title(f"Distribuzione MAE per modello (CV folds) - {out_prefix}")
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles[0:2], labels[0:2], title="Set")
-    save_plot(f"{out_prefix}boxplot_mae.png")
+    save_plot(f"{out_prefix}boxplot_mae.png", img_dir)
 
     # Boxplot per R²
     plt.figure(figsize=(10, 6))
@@ -137,7 +137,7 @@ def plot_performance_metrics(scores_df, results_df, out_prefix):
     plt.title(f"Distribuzione R² per modello (CV folds) - {out_prefix}")
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles[0:2], labels[0:2], title="Set")
-    save_plot(f"{out_prefix}boxplot_r2.png")
+    save_plot(f"{out_prefix}boxplot_r2.png", img_dir)
 
     # Scatter plot RMSE train vs RMSE validation con barre di errore
     plt.figure(figsize=(8, 6))
@@ -168,10 +168,10 @@ def plot_performance_metrics(scores_df, results_df, out_prefix):
     plt.ylabel("RMSE Validation (mean ± std)")
     plt.title(f"Overfitting vs Generalizzazione (con deviazione standard) - {out_prefix}")
     plt.legend()
-    save_plot(f"{out_prefix}overfitting_vs_generalization.png")
+    save_plot(f"{out_prefix}overfitting_vs_generalization.png", img_dir)
 
 
-def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name):
+def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name, img_dir):
     """
     Grafici diagnostici per il modello finale sul test set.
     """
@@ -186,7 +186,7 @@ def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name):
     plt.xlabel("Valori predetti")
     plt.ylabel("Residui (y_true - y_pred)")
     plt.title(f"Residui - {best_model_name}")
-    save_plot("predetti_vs_residui.png")
+    save_plot("predetti_vs_residui.png", img_dir)
 
     # Confronto predetti vs osservati
     plt.figure(figsize=(6, 6))
@@ -195,7 +195,7 @@ def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name):
     plt.xlabel("Osservati (y_true)")
     plt.ylabel("Predetti (y_pred)")
     plt.title(f"Osservati vs Predetti - {best_model_name}")
-    save_plot("predetti_vs_osservati.png")
+    save_plot("predetti_vs_osservati.png", img_dir)
 
     # Distribuzione residui
     plt.figure(figsize=(8, 5))
@@ -205,13 +205,12 @@ def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name):
     plt.ylabel("Conteggio")
     plt.title(f"Distribuzione residui - {best_model_name}")
     plt.tight_layout()
-    save_plot("residui_hist.png")
+    save_plot("residui_hist.png", img_dir)
 
-    # Residui vs feature chiave (es. AgeInDays, rapporto W/C se presenti)
+    # Residui vs features
     key_features = []
-    for feat in ["AgeInDays", "SuperplasticizerComp", "W/C"]:
-        if feat in X_test.columns:
-            key_features.append(feat)
+    for feat in X_test.columns:
+        key_features.append(feat)
 
     for feat in key_features:
         plt.figure(figsize=(6, 4))
@@ -221,7 +220,7 @@ def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name):
         plt.ylabel("Residui")
         plt.title(f"Residui vs {feat} - {best_model_name}")
         plt.tight_layout()
-        save_plot(f"residui_vs_{feat.replace('/', 'div')}.png")
+        save_plot(f"residui_vs_{feat.replace('/', 'div')}.png", img_dir)
 
 
 ##########################
