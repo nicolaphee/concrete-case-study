@@ -11,6 +11,8 @@ from sklearn.dummy import DummyRegressor
 
 import joblib
 
+import tabulate
+
 # # per ignorare warning
 # import warnings
 # warnings.filterwarnings("ignore")
@@ -155,19 +157,30 @@ final_pipe = fit_final_model(
     sample_weighting=sample_weighting
 )
 
-
-# Test finale sul set di test
-y_pred = final_pipe.predict(X_test)
-rmse_test = root_mean_squared_error(y_test, y_pred)
-mae_test = mean_absolute_error(y_test, y_pred)
-r2_test = r2_score(y_test, y_pred)
+# Valutazione finale sul set di test
+y_test_pred = final_pipe.predict(X_test)
+rmse_test = root_mean_squared_error(y_test, y_test_pred)
+mae_test = mean_absolute_error(y_test, y_test_pred)
+r2_test = r2_score(y_test, y_test_pred)
 mae_test_rel = mae_test / (y_test.max() - y_test.min())
 
-print("\n=== Prestazioni su test set ===")
-print(f"RMSE = {rmse_test:.3f}")
-print(f"MAE  = {mae_test:.3f}")
-print(f"R²   = {r2_test:.3f}")
-print(f"MAE relativo = {mae_test_rel:.3f}")
+# Valutazione finale sul set di train+validation
+y_trainval_pred = final_pipe.predict(X_trainval)
+rmse_trainval = root_mean_squared_error(y_trainval, y_trainval_pred)
+mae_trainval = mean_absolute_error(y_trainval, y_trainval_pred)
+r2_trainval = r2_score(y_trainval, y_trainval_pred)
+mae_trainval_rel = mae_trainval / (y_trainval.max() - y_trainval.min())
+
+final_performance_df = pd.DataFrame({
+    "Set": ["train+valid", "test", ],
+    "RMSE": [rmse_trainval, rmse_test, ],
+    "MAE": [mae_trainval, mae_test, ],
+    "R2": [r2_trainval, r2_test, ],
+    "MAE relativo": [mae_trainval_rel, mae_test_rel,],
+})
+print(tabulate.tabulate(final_performance_df, headers="keys", tablefmt="pretty"))
+
+final_performance_df.to_csv(os.path.join(img_dir, "final_performance.csv"), index=False)
 
 # ---------------------------
 # 9. Error analysis
@@ -175,10 +188,10 @@ print(f"MAE relativo = {mae_test_rel:.3f}")
 plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name)
 
 # Top 10 errori maggiori (in valore assoluto)
-residui = y_test - y_pred
+residui = y_test - y_test_pred
 errors = pd.DataFrame({
     "y_true": y_test,
-    "y_pred": y_pred,
+    "y_pred": y_test_pred,
     "residuo": residui.abs()
 }).sort_values("residuo", ascending=False).head(10)
 
@@ -187,5 +200,4 @@ print(errors)
 errors.to_csv(os.path.join(img_dir, "top10_errori.csv"), index=False)
 
 # Salva il modello finale
-final_model = final_pipe.named_steps["model"]
-joblib.dump(final_pipe, os.path.join(img_dir, "final_model.pkl"))
+joblib.dump(final_pipe, os.path.join(img_dir, "final_pipeline.pkl"))
