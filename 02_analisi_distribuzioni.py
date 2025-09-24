@@ -2,9 +2,8 @@ import sys
 sys.path.append("./utils")
 from functions import plot_distribution, save_plot, add_engineered_features, correlation_heatmap, plot_univariate_scatter
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import os
+import numpy as np
 
 # Directory di salvataggio immagini
 img_dir = "02_eda_plots"
@@ -24,19 +23,19 @@ print("Numero campioni, Numero campioni dropna, differenza:")
 print(df_raw.shape[0], df_dropna.shape[0], df_raw.shape[0] - df_dropna.shape[0])
 
 df = add_engineered_features(df_raw)
-num_cols = df.select_dtypes(include=["int64", "float64"]).columns
+cols = df.columns
 
 # Distribuzioni delle variabili
-for col in num_cols:
+for col in cols:
     plot_distribution(df, col)
     save_plot(f"distribution_{col.replace('/','div')}.png", img_dir=img_dir)
 print(f"Grafici di distribuzioni salvate in: {img_dir}")
 
 # Correlazione tra variabili numeriche
-correlation_heatmap(df, num_cols)
+correlation_heatmap(df, cols)
 save_plot("correlation_heatmap.png", img_dir=img_dir)
 
-for col in num_cols:
+for col in cols:
     plot_univariate_scatter(df, col, "Strength")
     save_plot(f"Strength_vs_{col.replace('/','div')}.png", img_dir=img_dir)
 print(f"Grafici di correlazione salvati in: {img_dir}")

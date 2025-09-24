@@ -12,7 +12,7 @@ from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_err
 
 from models import models, param_grids
 
-from params import random_state, n_iter, apply_feature_eng, log_transform_target, sample_weighting
+from params import random_state, n_iter, apply_feature_eng, log_transform_target, sample_weighting, use_simple_imputer
 
 import joblib
 
@@ -43,7 +43,16 @@ y = df[target]
 
 if apply_feature_eng:
     X = add_engineered_features(X)
-    # X = X.drop(columns=[])
+    # X = X.drop(columns=[
+    # # "CementComp",
+    # "WaterComp",
+    # "BlastFurnaceSlag",
+    # "FlyAshComp",
+    # "SuperplasticizerComp",
+    # # "CoarseAggregateComp",
+    # "FineAggregateComp",
+    # # "AgeInDays",
+    # ])
 
 # ---------------------------
 # 3. Train/test split
@@ -59,7 +68,7 @@ X_train, X_valid, y_train, y_valid = train_test_split(
 # 4. Preprocessing pipeline
 # ---------------------------
 num_features = X_train.columns
-preprocessor = define_imputer_preprocessor(num_features, random_state)
+preprocessor = define_imputer_preprocessor(num_features, random_state, use_simple_imputer)
 
 # ---------------------------
 # 5. Definizione modelli

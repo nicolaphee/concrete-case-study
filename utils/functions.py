@@ -36,58 +36,55 @@ def add_engineered_features(df):
     df = df.copy()
     
     df["W/C"] = df["WaterComp"] / (df["CementComp"] + 1e-6)
+    # df["BlastFurnaceSlag_Indicator"] = df["BlastFurnaceSlag"] > 0
+    # df["FlyAshComp_Indicator"] = df["FlyAshComp"] > 0
+    # df["SuperplasticizerComp_Indicator"] = df["SuperplasticizerComp"] > 5
 
     return df
 
 
-def define_imputer_preprocessor(actual_features, random_state):
-    from sklearn.impute import SimpleImputer
-    numeric_transformer = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="median"))
-    ])
+def define_imputer_preprocessor(actual_features, random_state, use_simple_imputer=True):
+    '''
+    Definisce un ColumnTransformer imputer che imputa con la mediana se use_simple_imputer=False,
+    altrimenti con strategie di imputazione diverse per gruppi di variabili.
+    - Variabili con code lunghe → Mediana
+    - Distribuzioni simmetriche e senza outlier forti → Media
+    - Variabili con molti zeri → Imputazione a 0
+    '''
+    if use_simple_imputer:
+        from sklearn.impute import SimpleImputer
+        numeric_transformer = Pipeline(steps=[
+            ("imputer", SimpleImputer(strategy="median"))
+        ])
 
-    preprocessor = ColumnTransformer(
-        transformers=[("num", numeric_transformer, actual_features)]
-    )
+        preprocessor = ColumnTransformer(
+            transformers=[("num", numeric_transformer, actual_features)]
+        )
 
-    return preprocessor
-    # '''
-    # Definisce un ColumnTransformer con strategie di imputazione diverse per gruppi di variabili.
-    # - Variabili con code lunghe → Mediana
-    # - Distribuzioni simmetriche e senza outlier forti → Media
-    # - Variabili con molti zeri → Imputazione a 0
-    # '''
-    # from sklearn.experimental import enable_iterative_imputer
-    # from sklearn.impute import SimpleImputer, IterativeImputer
+        return preprocessor
+    else:
+        from sklearn.experimental import enable_iterative_imputer
+        from sklearn.impute import SimpleImputer, IterativeImputer
 
-    # # Liste di variabili per gruppo
-    # median_features = [feat for feat in ["WaterComp", "W/C"] if feat in actual_features]
-    # mean_features = [feat for feat in ["CementComp", "CoarseAggregateComp", "FineAggregateComp"] if feat in actual_features]
-    # zero_features = [feat for feat in ["BlastFurnaceSlag", "FlyAshComp", "SuperplasticizerComp"] if feat in actual_features]
-    # age_features = [feat for feat in ["AgeDays"] if feat in actual_features]
+        # Liste di variabili per gruppo
+        median_features = [feat for feat in ["AgeDays", "WaterComp", "W/C"] if feat in actual_features]
+        mean_features = [feat for feat in ["CementComp", "CoarseAggregateComp", "FineAggregateComp", ] if feat in actual_features]
+        zero_features = [feat for feat in ["BlastFurnaceSlag", "FlyAshComp", "SuperplasticizerComp"] if feat in actual_features]
 
-    # # Trasformatori specifici
-    # median_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="median"))])
-    # mean_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="mean"))])
-    # zero_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="constant", fill_value=0))])
-    # age_transformer = Pipeline([
-    #     ("imputer", IterativeImputer(
-    #         estimator=RandomForestRegressor(n_estimators=50, random_state=random_state),
-    #         max_iter=10,
-    #         random_state=random_state
-    #     ))
-    # ])
+        # Trasformatori specifici
+        median_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="median"))])
+        mean_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="mean"))])
+        zero_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="constant", fill_value=0))])
 
-    # # ColumnTransformer con strategie diverse
-    # preprocessor = ColumnTransformer(
-    #     transformers=[
-    #         ("median", median_transformer, median_features),
-    #         ("mean", mean_transformer, mean_features),
-    #         ("zero", zero_transformer, zero_features),
-    #         ("age", age_transformer, age_features),
-    #     ]
-    # )
-    # return preprocessor
+        # ColumnTransformer con strategie diverse
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ("median", median_transformer, median_features),
+                ("mean", mean_transformer, mean_features),
+                ("zero", zero_transformer, zero_features),
+            ]
+        )
+        return preprocessor
 
 
 
@@ -260,13 +257,7 @@ def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name, im
     save_plot("predetti_vs_osservati.png", img_dir)
 
     # Distribuzione residui
-    plt.figure(figsize=(8, 5))
-    sns.histplot(residui, bins=30, kde=True)
-    plt.axvline(0, color="red", linestyle="--")
-    plt.xlabel("Residuo (y_true - y_pred)")
-    plt.ylabel("Conteggio")
-    plt.title(f"Distribuzione residui - {best_model_name}")
-    plt.tight_layout()
+    plot_distribution(residui.to_frame(name="Residuo (y_true - y_pred)"), "Residuo (y_true - y_pred)")
     save_plot("residui_hist.png", img_dir)
 
     # Residui vs features
