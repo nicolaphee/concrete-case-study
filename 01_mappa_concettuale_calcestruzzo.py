@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 import os
+from utils.functions import save_plot
 
 # Directory di salvataggio immagini
 img_dir = "01_domain_knowledge_plots/"
@@ -50,4 +51,49 @@ plt.title("Mappa concettuale: Resistenza del calcestruzzo", fontsize=14)
 plt.axis("off")
 
 # Salvataggio in PNG
-plt.savefig(os.path.join(img_dir,"mappa_concettuale_calcestruzzo.png"), format="png", dpi=300, )
+save_plot("mappa_concettuale_calcestruzzo.png", img_dir=img_dir)
+
+
+
+
+# ================================
+# Nuova mappa concettuale: Variabili ingegnerizzate
+# ================================
+variables_engineered = {
+    "W/C": "↓ se alto \n → porosità ↑",
+    "Binder": "↑ reazioni \n → Strength ↑",
+    "SCM%": "Ottimale 20–40% \n → Strength ↑",
+    "Aggregates/Paste": "Troppo alto → poca pasta \n → Strength ↓",
+    "Superplasticizer/Binder": "Ottimale → meno acqua \n → Strength ↑",
+    "Age (cat)": "Crescita rapida 28d \n → poi saturazione"
+}
+
+# Nuovo grafo per variabili ingegnerizzate
+G2 = nx.DiGraph()
+G2.add_node("Resistenza Calcestruzzo", style="filled", color="lightgray")
+
+for var, desc in variables_engineered.items():
+    G2.add_node(var)
+    G2.add_edge(var, "Resistenza Calcestruzzo", label=desc)
+
+pos2 = nx.circular_layout(G2)
+pos2["Resistenza Calcestruzzo"] = [0, 0]
+
+plt.figure(figsize=(12, 8))
+nx.draw_networkx_nodes(G2, pos2, node_size=2500, node_color="lightyellow", edgecolors="black")
+nx.draw_networkx_labels(G2, pos2, font_size=9, font_weight="bold")
+nx.draw_networkx_edges(G2, pos2, arrowstyle="->", arrowsize=5, edge_color="gray")
+
+edge_labels2 = nx.get_edge_attributes(G2, 'label')
+nx.draw_networkx_edge_labels(
+    G2, pos2,
+    edge_labels=edge_labels2,
+    font_size=10,
+    font_weight="bold",
+    bbox=dict(alpha=0.0, color="white"),
+)
+
+plt.title("Mappa concettuale: Variabili ingegnerizzate", fontsize=14)
+plt.axis("off")
+plt.tight_layout()
+save_plot("mappa_concettuale_calcestruzzo_engineered.png", img_dir=img_dir)
