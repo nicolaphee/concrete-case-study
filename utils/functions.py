@@ -250,15 +250,16 @@ def plot_univariate_scatter(df, col, target):
     plt.gca().text(0.05, 0.95, f"Corr: {corr:.2f}", transform=plt.gca().transAxes, fontsize=10, verticalalignment='top', bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8))
 
 
-def plot_performance_metrics(scores_df, results_df, out_prefix, img_dir):
+def plot_performance_metrics(scores_df, results_df, out_prefix, img_dir, set_ylim=False):
 
     # Boxplot per RMSE
     plt.figure(figsize=(10, 6))
     sns.boxplot(x="Model", y="RMSE", hue="Set", data=scores_df)
     sns.stripplot(x="Model", y="RMSE", hue="Set", data=scores_df, palette='dark:black', size=3, jitter=True)
-    plt.ylim(0)
-    plt.xticks(rotation=45, ha="right")
-    plt.title(f"Distribuzione RMSE per modello (CV folds)" if len(out_prefix) == 0 else f"Distribuzione RMSE per modello (CV folds) - {out_prefix}")
+    if set_ylim:
+        plt.ylim(0)
+    plt.xticks(rotation=30, ha="right")
+    plt.title(f"Distribuzione RMSE per modello (CV folds)" if len(out_prefix) == 0 else f"Distribuzione RMSE per modello (CV folds) - {out_prefix.replace('_','')}")
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles[0:2], labels[0:2], title="Set")
     save_plot(f"{out_prefix}boxplot_rmse.png", img_dir)
@@ -267,9 +268,10 @@ def plot_performance_metrics(scores_df, results_df, out_prefix, img_dir):
     plt.figure(figsize=(10, 6))
     sns.boxplot(x="Model", y="MAE", hue="Set", data=scores_df)
     sns.stripplot(x="Model", y="MAE", hue="Set", data=scores_df, palette='dark:black', size=3, jitter=True)
-    plt.ylim(0)
-    plt.xticks(rotation=45, ha="right")
-    plt.title(f"Distribuzione MAE per modello (CV folds)" if len(out_prefix) == 0 else f"Distribuzione MAE per modello (CV folds) - {out_prefix}")
+    if set_ylim:
+        plt.ylim(0)
+    plt.xticks(rotation=30, ha="right")
+    plt.title(f"Distribuzione MAE per modello (CV folds)" if len(out_prefix) == 0 else f"Distribuzione MAE per modello (CV folds) - {out_prefix.replace('_','')}")
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles[0:2], labels[0:2], title="Set")
     save_plot(f"{out_prefix}boxplot_mae.png", img_dir)
@@ -278,9 +280,10 @@ def plot_performance_metrics(scores_df, results_df, out_prefix, img_dir):
     plt.figure(figsize=(10, 6))
     sns.boxplot(x="Model", y="R2", hue="Set", data=scores_df)
     sns.stripplot(x="Model", y="R2", hue="Set", data=scores_df, palette='dark:black', size=3, jitter=True)
-    plt.ylim(0,1)
-    plt.xticks(rotation=45, ha="right")
-    plt.title(f"Distribuzione R² per modello (CV folds)" if len(out_prefix) == 0 else f"Distribuzione R² per modello (CV folds) - {out_prefix}")
+    if set_ylim:
+        plt.ylim(0,1)
+    plt.xticks(rotation=30, ha="right")
+    plt.title(f"Distribuzione R² per modello (CV folds)" if len(out_prefix) == 0 else f"Distribuzione R² per modello (CV folds) - {out_prefix.replace('_','')}")
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles[0:2], labels[0:2], title="Set")
     save_plot(f"{out_prefix}boxplot_r2.png", img_dir)
@@ -629,7 +632,6 @@ def generate_shap_report(final_pipe, X_sample):
     for i, feat in enumerate(X_sample.columns):
         values = shap_values[:, i].values
         mean_abs = np.mean(np.abs(values))
-        mean_val = np.mean(values)
 
         # Classificazione importanza
         if mean_abs >= 2:
@@ -639,27 +641,26 @@ def generate_shap_report(final_pipe, X_sample):
         else:
             impatto = "Impatto debole"
 
-        # Direzione principale
-        if mean_val > 0.05:
-            direzione = "Valori alti → Strength ↑"
-        elif mean_val < -0.05:
-            direzione = "Valori alti → Strength ↓"
-        else:
-            direzione = "Effetto ambiguo / bilanciato"
-
-        # Analisi forma della relazione con quantili
+        # Analisi forma + direzione
         try:
-            quantiles = pd.qcut(X_sample[feat], q=3, duplicates="drop")
-            mean_by_bin = pd.DataFrame({"bin": quantiles, "shap": values}).groupby("bin").mean()
+            if X_sample[feat].nunique() <= 5:  # categoriale / pochi valori
+                mean_by_bin = pd.DataFrame({"cat": X_sample[feat], "shap": values}).groupby("cat").mean()
+            else:
+                quantiles = pd.qcut(X_sample[feat], q=5, duplicates="drop")
+                mean_by_bin = pd.DataFrame({"bin": quantiles, "shap": values}).groupby("bin").mean()
 
             if mean_by_bin["shap"].is_monotonic_increasing:
                 forma = "Relazione monotona crescente"
+                direzione = "Valori alti → Strength ↑"
             elif mean_by_bin["shap"].is_monotonic_decreasing:
                 forma = "Relazione monotona decrescente"
+                direzione = "Valori alti → Strength ↓"
             else:
                 forma = "Relazione non monotona / effetto soglia"
+                direzione = "Effetto ambiguo / bilanciato"
         except Exception:
             forma = "Relazione non stimabile (dati costanti o pochi valori)"
+            direzione = "Effetto ambiguo / bilanciato"
 
         # Indicazione pratica
         if "↑" in direzione:
@@ -672,9 +673,10 @@ def generate_shap_report(final_pipe, X_sample):
         summary.append({
             "Feature": feat,
             "Importanza media SHAP": round(mean_abs, 2),
+            "Impatto": impatto,
             "Osservazione": direzione,
-            "Relazione stimata": forma,
-            "Indicazione pratica": indicazione
+            # "Relazione stimata": forma,
+            # "Indicazione pratica": indicazione
         })
 
     df_summary = pd.DataFrame(summary).sort_values("Importanza media SHAP", ascending=False)
