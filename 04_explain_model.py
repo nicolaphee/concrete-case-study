@@ -1,6 +1,6 @@
 import os 
 from utils.params import random_state
-img_dir = "07_results/08_explain_model"
+img_dir = "04_explain_model"
 os.makedirs(img_dir, exist_ok=True)
 
 multivariable_dependence = False
@@ -26,8 +26,7 @@ warnings.filterwarnings("ignore")
 #######################
 
 # Carica modello finale
-final_pipeline = joblib.load(os.path.join("07_results", "final_pipeline.pkl"))
-# print(final_pipeline)
+final_pipeline = joblib.load(os.path.join("03_results", "final_pipeline.pkl"))
 
 # Carica dataset
 df = pd.read_csv("dataset.csv", sep=";")

@@ -8,7 +8,6 @@ from utils.params import apply_feature_eng, use_clipping
 from utils.params import log_transform_target, sample_weighting, use_simple_imputer
 
 import pandas as pd
-import numpy as np
 import os
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
@@ -17,7 +16,7 @@ import joblib
 
 import tabulate
 
-img_dir = "07_results"
+img_dir = "03_results"
 os.makedirs(img_dir, exist_ok=True)
 
 # # per ignorare warning
@@ -33,6 +32,7 @@ df = pd.read_csv("dataset.csv", sep=";")
 df = df.drop(columns=["Unnamed: 0", "id"])
 df.columns = df.columns.str.replace("Component", "Comp", regex=True)
 
+
 # ---------------------------
 # 2. Feature Engineering
 # ---------------------------
@@ -44,9 +44,11 @@ if apply_feature_eng:
     X = add_engineered_features(X)
     X = drop_excluded_columns(X)
 
+
 # ---------------------------
 # 3. Train/test split
 # ---------------------------
+
 X_trainval, X_test, y_trainval, y_test = train_test_split(
     X, y, test_size=0.15, random_state=random_state
 )
@@ -54,11 +56,13 @@ X_train, X_valid, y_train, y_valid = train_test_split(
     X_trainval, y_trainval, test_size=0.15/0.85, random_state=random_state
 )  # 0.15/0.85 = 0.1765 ≈ 15% of total
 
+
 # ---------------------------
 # 4. Preprocessing pipeline
 # ---------------------------
 num_features = X_train.columns
 preprocessor = define_imputer_preprocessor(num_features, random_state, use_simple_imputer)
+
 
 # ---------------------------
 # 5. Definizione modelli
@@ -70,6 +74,7 @@ if log_transform_target:
 
 if sample_weighting:
     print("Usiamo pesi campione basati sui valori del target quando necessario.")
+
 
 # ---------------------------
 # 6. Cross-validation - Prima valutazione modelli
@@ -92,7 +97,7 @@ plot_performance_metrics(scores_df, results_df, out_prefix="", img_dir=img_dir)
 
 
 # ---------------------------
-# 7bis. Hyperparameter tuning sui modelli finalisti
+# 7. Hyperparameter tuning sui modelli finalisti
 # ---------------------------
 if log_transform_target:
     # aggiusta i nomi dei parametri per il target transformer
@@ -117,8 +122,9 @@ best_pipelines = tune_hyperparameters(
     sample_weighting=sample_weighting
 )
 
+
 # ---------------------------
-# 7ter. Comparazione modelli tunati (train vs validation)
+# 8. Comparazione modelli tunati (train vs validation)
 # ---------------------------
 results_tuned_df, scores_tuned_df = cross_validate_models(
     X_train, y_train,
@@ -136,7 +142,7 @@ plot_performance_metrics(scores_tuned_df, results_tuned_df, out_prefix="tuned_",
 
 
 # ---------------------------
-# 8. Selezione finale sul best model
+# 9. Selezione finale sul best model
 # ---------------------------
 
 print("\nSelezione modello migliore dai finalisti tunati...")
@@ -179,8 +185,9 @@ print(tabulate.tabulate(final_performance_df, headers="keys", tablefmt="pretty")
 
 final_performance_df.to_csv(os.path.join(img_dir, "final_performance.csv"), index=False)
 
+
 # ---------------------------
-# 9. Error analysis
+# 10. Error analysis
 # ---------------------------
 plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name, img_dir)
 
