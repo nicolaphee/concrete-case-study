@@ -16,7 +16,7 @@ import joblib
 
 import tabulate
 
-img_dir = "03_results"
+img_dir = "03_model_results"
 os.makedirs(img_dir, exist_ok=True)
 
 # # per ignorare warning

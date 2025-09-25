@@ -54,8 +54,6 @@ plt.axis("off")
 save_plot("mappa_concettuale_calcestruzzo.png", img_dir=img_dir)
 
 
-
-
 # ================================
 # Nuova mappa concettuale: Variabili ingegnerizzate
 # ================================

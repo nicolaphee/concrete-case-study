@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore")
 #######################
 
 # Carica modello finale
-final_pipeline = joblib.load(os.path.join("03_results", "final_pipeline.pkl"))
+final_pipeline = joblib.load(os.path.join("03_model_results", "final_pipeline.pkl"))
 
 # Carica dataset
 df = pd.read_csv("dataset.csv", sep=";")
