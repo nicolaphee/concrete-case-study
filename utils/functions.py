@@ -45,19 +45,19 @@ def add_engineered_features(df):
     df["SuperPlasticizer/Binder"] = df["SuperplasticizerComp"] / (df["Binder"] + 1e-6)
 
     bins = [0, 7, 28, np.inf]
-    labels = ["1-7", "8-28", "28+"]
+    labels = [0, 1, 2]
     df["AgeInDays_cat"] = pd.cut(df["AgeInDays"], bins=bins, labels=labels, right=True)
 
     df = df.drop(columns=[
-        "Binder", 
-        # "AggT", 
-        # "SCM", 
-        "SCM%", 
-        "W/C",
-        # "Paste",
-        "AggT/Paste",
-        "SuperPlasticizer/Binder",
-        "AgeInDays_cat"
+        # "Binder", 
+        "AggT", 
+        "SCM", 
+        # "SCM%", 
+        # "W/C",
+        "Paste",
+        # "AggT/Paste",
+        # "SuperPlasticizer/Binder",
+        # "AgeInDays_cat"
     ]) 
 
     return df
@@ -138,38 +138,64 @@ def plot_distribution(df, col):
     '''
     
     num_rows = df.shape[0]
-
     data = df[col].dropna()
     missing = df[col].isnull().sum()
-    col_min, col_max = data.min(), data.max()
-    mean, median = data.mean(), data.median()
-    std = data.std()
-    skew = data.skew()
-    kurt = data.kurtosis()
-    perc5, perc95 = data.quantile(0.05), data.quantile(0.95)
 
-    # Creo la figura
-    plt.figure(figsize=(12,5))
-    plt.subplot(1,2,1)
-    sns.histplot(data, kde=True, bins=30)
-    plt.title(f"Distribuzione di {col}")
+    if pd.api.types.is_numeric_dtype(data):
+        col_min, col_max = data.min(), data.max()
+        mean, median = data.mean(), data.median()
+        std = data.std()
+        skew = data.skew()
+        kurt = data.kurtosis()
+        perc5, perc95 = data.quantile(0.05), data.quantile(0.95)
 
-    # Box con statistiche
-    stats_text = (f"Range: {col_min:.2f} - {col_max:.2f}\n"
-                f"5°-95° perc: {perc5:.2f} - {perc95:.2f}\n"
-                f"Media: {mean:.2f}, Mediana: {median:.2f}\n"
-                f"Std: {std:.2f}, Skew: {skew:.2f}, Kurt: {kurt:.2f}\n"
-                f"Valori mancanti: {missing} / {num_rows} ({(missing/num_rows)*100:.2f}%)")
-    plt.gca().text(0.95, 0.95, stats_text,
-                transform=plt.gca().transAxes,
-                fontsize=10,
-                verticalalignment='top',
-                horizontalalignment='right',
-                bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8))
+        # Creo la figura
+        plt.figure(figsize=(12,5))
+        plt.subplot(1,2,1)
+        sns.histplot(data, kde=True, bins=30)
+        plt.title(f"Distribuzione di {col}")
 
-    plt.subplot(1,2,2)
-    sns.boxplot(x=data)
-    plt.title(f"Boxplot di {col}")
+        # Box con statistiche
+        stats_text = (f"Range: {col_min:.2f} - {col_max:.2f}\n"
+                    f"5°-95° perc: {perc5:.2f} - {perc95:.2f}\n"
+                    f"Media: {mean:.2f}, Mediana: {median:.2f}\n"
+                    f"Std: {std:.2f}, Skew: {skew:.2f}, Kurt: {kurt:.2f}\n"
+                    f"Valori mancanti: {missing} / {num_rows} ({(missing/num_rows)*100:.2f}%)")
+        plt.gca().text(0.95, 0.95, stats_text,
+                    transform=plt.gca().transAxes,
+                    fontsize=10,
+                    verticalalignment='top',
+                    horizontalalignment='right',
+                    bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8))
+
+        plt.subplot(1,2,2)
+        sns.boxplot(x=data)
+        plt.title(f"Boxplot di {col}")
+    else:
+        # Colonna categorica: barplot delle frequenze
+        plt.figure(figsize=(8,5))
+        value_counts = data.value_counts().sort_index()
+        sns.barplot(x=value_counts.index.astype(str), y=value_counts.values)
+        plt.title(f"Distribuzione categorie di {col}")
+        plt.xlabel(col)
+        plt.ylabel("Frequenza")
+        for i, v in enumerate(value_counts.values):
+            plt.text(i, v, str(v), ha='center', va='bottom')
+
+        # Statistiche per categoriche
+        n_cat = value_counts.shape[0]
+        top_cat = value_counts.idxmax()
+        top_freq = value_counts.max()
+        stats_text = (f"#Categorie: {n_cat}\n"
+                      f"Top: {top_cat} ({top_freq} occorrenze)\n"
+                      f"Valori mancanti: {missing} / {num_rows} ({(missing/num_rows)*100:.2f}%)")
+        plt.gca().text(0.95, 0.95, stats_text,
+                    transform=plt.gca().transAxes,
+                    fontsize=10,
+                    verticalalignment='top',
+                    horizontalalignment='right',
+                    bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.8))
+
 
 
 def correlation_heatmap(df, num_cols):

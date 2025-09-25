@@ -12,6 +12,3 @@
 # Models and models info
 *.pkl
 catboost_info/*
-
-# Compiled Python files
-*.pyc
