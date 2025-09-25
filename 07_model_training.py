@@ -3,7 +3,9 @@ from utils.functions import add_engineered_features, drop_excluded_columns, defi
 from utils.functions import composite_score, cross_validate_models, tune_hyperparameters, select_best_tuned_model, fit_final_model
 
 from utils.models import models, param_grids
-from utils.params import random_state, n_iter, apply_feature_eng, log_transform_target, sample_weighting, use_simple_imputer
+from utils.params import random_state, n_iter
+from utils.params import apply_feature_eng, use_clipping
+from utils.params import log_transform_target, sample_weighting, use_simple_imputer
 
 import pandas as pd
 import numpy as np
