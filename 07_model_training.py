@@ -1,5 +1,5 @@
 from utils.functions import plot_performance_metrics, plot_final_model_diagnostics
-from utils.functions import add_engineered_features, define_imputer_preprocessor, wrap_with_target_transformer
+from utils.functions import add_engineered_features, drop_excluded_columns, define_imputer_preprocessor, wrap_with_target_transformer
 from utils.functions import composite_score, cross_validate_models, tune_hyperparameters, select_best_tuned_model, fit_final_model
 
 from utils.models import models, param_grids
@@ -40,16 +40,7 @@ y = df[target]
 
 if apply_feature_eng:
     X = add_engineered_features(X)
-    # X = X.drop(columns=[
-    # # "CementComp",
-    # "WaterComp",
-    # "BlastFurnaceSlag",
-    # "FlyAshComp",
-    # "SuperplasticizerComp",
-    # # "CoarseAggregateComp",
-    # "FineAggregateComp",
-    # # "AgeInDays",
-    # ])
+    X = drop_excluded_columns(X)
 
 # ---------------------------
 # 3. Train/test split

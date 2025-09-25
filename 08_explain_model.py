@@ -3,7 +3,7 @@ from utils.params import random_state
 img_dir = "07_results/08_explain_model"
 os.makedirs(img_dir, exist_ok=True)
 
-from utils.functions import add_engineered_features, save_plot, generate_shap_report
+from utils.functions import add_engineered_features, drop_excluded_columns, save_plot, generate_shap_report
 
 import joblib
 
@@ -42,6 +42,7 @@ y = df[target]
 
 # Aggiungi feature ingegnerizzate
 X = add_engineered_features(X)
+X = drop_excluded_columns(X)
 
 # Campiona un sottoinsieme dei dati
 X_sample = X.sample(n=min(200, len(X)), random_state=random_state)
@@ -66,7 +67,7 @@ plt.title("SHAP Feature effects (beeswarm<>)")
 save_plot("beeswarm_plot.png", img_dir=img_dir)
 
 
-# Dependence plot su features ingegnerizzata (esempio: W/C)
+# Dependence plot su features
 for feat in X.columns:
     shap.plots.scatter(shap_values[:, feat], color=shap_values[:, feat])
     plt.title(f"SHAP Feature effects (dependence) - {feat}")

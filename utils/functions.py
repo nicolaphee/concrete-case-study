@@ -32,13 +32,48 @@ from sklearn.ensemble import RandomForestRegressor
 def add_engineered_features(df):
     df = df.copy()
     
-    df["W/C"] = df["WaterComp"] / (df["CementComp"] + 1e-6)
-    # df["BlastFurnaceSlag_Indicator"] = df["BlastFurnaceSlag"] > 0
-    # df["FlyAshComp_Indicator"] = df["FlyAshComp"] > 0
-    # df["SuperplasticizerComp_Indicator"] = df["SuperplasticizerComp"] > 5
+    df["Binder"] = df[["CementComp", "BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1)
+    df["AggT"] = df[["CoarseAggregateComp", "FineAggregateComp", ]].sum(axis=1)
+    df["SCM"] = df["BlastFurnaceSlag"] + df["FlyAshComp"]
+    df["SCM%"] = df["SCM"] / (df["Binder"] + 1e-6)
+
+    df["W/C"] = df["WaterComp"] / (df["CementComp"] + df["SCM"] + 1e-6)
+
+    df["Paste"] = df["Binder"] + df["WaterComp"] + df["SuperplasticizerComp"]
+    df["AggT/Paste"] = df["AggT"] / (df["Paste"] + 1e-6)
+
+    df["SuperPlasticizer/Binder"] = df["SuperplasticizerComp"] / (df["Binder"] + 1e-6)
+
+    bins = [0, 7, 28, np.inf]
+    labels = ["1-7", "8-28", "28+"]
+    df["AgeInDays_cat"] = pd.cut(df["AgeInDays"], bins=bins, labels=labels, right=True)
+
+    df = df.drop(columns=[
+        "Binder", 
+        # "AggT", 
+        # "SCM", 
+        "SCM%", 
+        "W/C",
+        # "Paste",
+        "AggT/Paste",
+        "SuperPlasticizer/Binder",
+        "AgeInDays_cat"
+    ]) 
 
     return df
 
+def drop_excluded_columns(X):
+    X = X.drop(columns=[
+        "CementComp",
+        "WaterComp",
+        "BlastFurnaceSlag",
+        "FlyAshComp",
+        "SuperplasticizerComp",
+        "CoarseAggregateComp",
+        "FineAggregateComp",
+        "AgeInDays",
+        ])
+    return X
 
 def define_imputer_preprocessor(actual_features, random_state, use_simple_imputer=True):
     '''
