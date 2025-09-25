@@ -718,7 +718,7 @@ def generate_shap_report(final_pipe, X_sample, window=30, img_dir=None, max_feat
             "Osservazione": direzione,
             # "Relazione stimata": forma,
             # "Indicazione pratica": indicazione
-            "Range ottimale (media mobile)": range_ottimale
+            "Range ottimale (media mobile)": range_ottimale,
         })
 
     df_summary = pd.DataFrame(summary).sort_values("Importanza media SHAP", ascending=False)
@@ -769,3 +769,66 @@ def generate_shap_report(final_pipe, X_sample, window=30, img_dir=None, max_feat
         save_plot("shap_optimal_ranges.png", img_dir)
 
     return df_summary, shap_values
+
+
+def generate_optimal_scenarios(final_pipe, optimal_ranges, n_samples=1000, top_k=10, img_dir=None):
+    """
+    Genera scenari ottimali campionando da distribuzioni di probabilità
+    fornite in un dizionario e valuta le ricette con il modello.
+
+    Parametri
+    ----------
+    final_pipe : sklearn Pipeline
+        Pipeline già addestrata (regressore o classificatore).
+    optimal_ranges : dict
+        Dizionario con chiavi = feature, valori = lista di distribuzioni.
+        Esempio:
+        {
+            "AgeInDays": [lambda rng: rng.integers(28, 90),
+                          lambda rng: rng.integers(90, 365)],
+            "Binder":    [lambda rng: rng.uniform(238.1, 374.0)],
+            "W/C":       [lambda rng: rng.uniform(0.3, 0.45)]
+        }
+    n_samples : int
+        Numero di scenari casuali da generare.
+    top_k : int
+        Numero di scenari migliori da restituire.
+
+    Output
+    ------
+    df_best : pandas DataFrame
+        Tabella con i migliori scenari e la predizione del modello.
+    """
+    import numpy as np
+    import pandas as pd
+
+    rng = np.random.default_rng(42)
+    scenarios = []
+
+    features = list(optimal_ranges.keys())
+
+    for _ in range(n_samples):
+        scenario = {}
+        for feat, distributions in optimal_ranges.items():
+            # scegli una delle distribuzioni disponibili per la feature
+            dist = distributions[rng.integers(len(distributions))]
+            # valuta la funzione con rng per generare un valore
+            scenario[feat] = dist(rng)
+        scenarios.append(scenario)
+
+    df_scenarios = pd.DataFrame(scenarios)
+
+    # Predici con il modello
+    try:
+        preds = final_pipe.predict_proba(df_scenarios)[:, -1]  # classificatore probabilistico
+    except Exception:
+        preds = final_pipe.predict(df_scenarios)              # regressore
+
+    df_scenarios["Predizione_strength"] = preds
+
+    df_best = df_scenarios.sort_values("Predizione_strength", ascending=False).head(top_k).reset_index(drop=True)
+
+    if img_dir is not None:
+        df_best.to_excel(os.path.join(img_dir, "optimal_scenarios.xlsx"), index=False)
+
+    return df_best

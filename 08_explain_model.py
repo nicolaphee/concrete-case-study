@@ -5,7 +5,8 @@ os.makedirs(img_dir, exist_ok=True)
 
 multivariable_dependence = False
 
-from utils.functions import add_engineered_features, drop_excluded_columns, save_plot, generate_shap_report
+from utils.functions import add_engineered_features, drop_excluded_columns, save_plot
+from utils.functions import generate_shap_report, generate_optimal_scenarios
 
 import joblib
 
@@ -77,3 +78,13 @@ for feat in X.columns:
         shap.plots.scatter(shap_values[:, feat], color=shap_values[:, feat])
     plt.title(f"SHAP Feature effects (dependence) - {feat}")
     save_plot(f"dependence_plot_{feat.replace('/', 'div')}.png", img_dir=img_dir)
+
+optimal_ranges = {
+   "AgeInDays_cat": [lambda rng: rng.integers(1, 3)],
+   "Binder": [lambda rng: rng.uniform(238.1, 374.0)],
+   "W/C": [lambda rng: rng.uniform(0.3, 0.51)],
+   "AggT/Paste": [lambda rng: rng.uniform(2.19, 3.15)],
+   "SuperplasticizerComp": [lambda rng: rng.uniform(3.9, 20.0)],
+   "CementComp": [lambda rng: rng.uniform(300, 500)],
+}
+df_best = generate_optimal_scenarios(final_pipeline, optimal_ranges, n_samples=1000, top_k=5, img_dir=img_dir)
