@@ -1,6 +1,4 @@
-import sys
-sys.path.append("./utils")  # per importare funzioni da ../utils
-from params_classifiers import random_state
+from utils.params_classifiers import random_state
 
 from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression

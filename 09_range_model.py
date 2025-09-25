@@ -1,12 +1,10 @@
-import sys
-sys.path.append("./utils")  # per importare funzioni da ../utils
-from functions import save_plot
-from functions_classifers import cross_validate_models_classification, composite_score_classification, plot_performance_metrics_classification
-from functions_classifers import tune_hyperparameters_classification, select_best_tuned_model_classification, fit_final_model_classification, evaluate_final_model_classification
+from utils.functions import save_plot
+from utils.functions_classifers import cross_validate_models_classification, composite_score_classification, plot_performance_metrics_classification
+from utils.functions_classifers import tune_hyperparameters_classification, select_best_tuned_model_classification, fit_final_model_classification, evaluate_final_model_classification
 
-from functions import plot_performance_metrics, plot_final_model_diagnostics
-from functions import add_engineered_features, define_imputer_preprocessor, wrap_with_target_transformer
-from functions import composite_score, cross_validate_models, tune_hyperparameters, select_best_tuned_model, fit_final_model
+from utils.functions import plot_performance_metrics, plot_final_model_diagnostics
+from utils.functions import add_engineered_features, define_imputer_preprocessor, wrap_with_target_transformer
+from utils.functions import composite_score, cross_validate_models, tune_hyperparameters, select_best_tuned_model, fit_final_model
 
 import pandas as pd
 import numpy as np

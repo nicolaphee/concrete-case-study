@@ -1,6 +1,4 @@
-import sys
-sys.path.append("./utils")
-from functions import plot_distribution, save_plot, add_engineered_features, correlation_heatmap, plot_univariate_scatter
+from utils.functions import plot_distribution, save_plot, add_engineered_features, correlation_heatmap, plot_univariate_scatter
 import pandas as pd
 import os
 import numpy as np

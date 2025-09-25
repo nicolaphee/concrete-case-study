@@ -1,6 +1,3 @@
-import sys
-sys.path.append("./utils")  # per importare funzioni da ../utils
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 

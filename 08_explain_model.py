@@ -1,11 +1,9 @@
-import sys
-sys.path.append("./utils")
 import os 
-from params import img_dir, random_state
-img_dir = os.path.join(img_dir, "08_explain_model")
+from utils.params import random_state
+img_dir = "07_results/08_explain_model"
 os.makedirs(img_dir, exist_ok=True)
 
-from functions import add_engineered_features, save_plot, generate_shap_report
+from utils.functions import add_engineered_features, save_plot, generate_shap_report
 
 import joblib
 
@@ -64,7 +62,7 @@ save_plot("bar_plot.png", img_dir=img_dir)
 
 # Beeswarm plot: effetti direzionali delle feature
 shap.plots.beeswarm(shap_values, max_display=15)
-plt.title("SHAP Feature effects (beeswarm)")
+plt.title("SHAP Feature effects (beeswarm<>)")
 save_plot("beeswarm_plot.png", img_dir=img_dir)
 
 

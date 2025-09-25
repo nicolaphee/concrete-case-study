@@ -1,18 +1,15 @@
-import sys
-sys.path.append("./utils")  # per importare funzioni da ../utils
-from functions import plot_performance_metrics, plot_final_model_diagnostics
-from functions import add_engineered_features, define_imputer_preprocessor, wrap_with_target_transformer
-from functions import composite_score, cross_validate_models, tune_hyperparameters, select_best_tuned_model, fit_final_model
+from utils.functions import plot_performance_metrics, plot_final_model_diagnostics
+from utils.functions import add_engineered_features, define_imputer_preprocessor, wrap_with_target_transformer
+from utils.functions import composite_score, cross_validate_models, tune_hyperparameters, select_best_tuned_model, fit_final_model
+
+from utils.models import models, param_grids
+from utils.params import random_state, n_iter, apply_feature_eng, log_transform_target, sample_weighting, use_simple_imputer
 
 import pandas as pd
 import numpy as np
 import os
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
-
-from models import models, param_grids
-
-from params import random_state, n_iter, apply_feature_eng, log_transform_target, sample_weighting, use_simple_imputer
 
 import joblib
 

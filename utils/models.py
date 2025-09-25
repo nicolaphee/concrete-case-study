@@ -1,6 +1,4 @@
-import sys
-sys.path.append("./utils")  # per importare funzioni da ../utils
-from params import random_state
+from utils.params import random_state
 
 from sklearn.linear_model import Ridge, Lasso, ElasticNet, BayesianRidge
 from sklearn.neighbors import KNeighborsRegressor
