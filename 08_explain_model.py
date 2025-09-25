@@ -53,7 +53,7 @@ X_sample = X.sample(n=min(200, len(X)), random_state=random_state)
 #########################
 ###  SHAP EXPLAINER   ###
 #########################
-df_shap_summary, shap_values = generate_shap_report(final_pipeline, X_sample)
+df_shap_summary, shap_values = generate_shap_report(final_pipeline, X_sample, window=10, img_dir=img_dir)
 print(df_shap_summary)
 df_shap_summary.to_excel(os.path.join(img_dir, "shap_feature_report.xlsx"), index=False)
 print(f"Report generato: {os.path.join(img_dir, 'shap_feature_report.xlsx')}")

@@ -616,17 +616,28 @@ def fit_final_model(
 ###  SHAP EXPLANATION   ###
 ###########################
 
-def generate_shap_report(final_pipe, X_sample):
+def generate_shap_report(final_pipe, X_sample, window=30, img_dir=None, max_features_plot=6):
     '''
-    Genera un report tabellare con osservazioni basate sui valori SHAP.
+    Genera un report tabellare con osservazioni basate sui valori SHAP
+    e identifica i range ottimali usando la media mobile dei valori SHAP.
+    Può anche plottare i grafici dei range ottimali per le feature più importanti.
+
+    Parametri:
+    - final_pipe: pipeline già addestrata
+    - X_sample: dataframe di input
+    - window: finestra per la media mobile
+    - img_dir: cartella in cui salvare il grafico (se None, non fa nessun plot)
+    - max_features_plot: numero massimo di feature da plottare
     '''
-    
     import shap
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import os
 
     explainer = shap.Explainer(final_pipe.predict, X_sample)
     shap_values = explainer(X_sample)
 
-    # Genera osservazioni automatiche
     summary = []
 
     for i, feat in enumerate(X_sample.columns):
@@ -670,6 +681,36 @@ def generate_shap_report(final_pipe, X_sample):
         else:
             indicazione = f"{impatto}: {feat} non mostra una direzione chiara ({forma})."
 
+        # Ordina e calcola media mobile
+        data_tmp = pd.DataFrame({"x": X_sample[feat], "shap": values}).sort_values("x")
+        roll_mean = data_tmp["shap"].rolling(window=window, center=True, min_periods=1).mean()
+
+        # Estrazione dei range ottimali (per tabella)
+        x_vals = data_tmp["x"].values
+        positive = (roll_mean.values > 0)
+
+        ranges = []
+        in_range = False
+        start_val = None
+
+        for val, pos in zip(x_vals, positive):
+            if pos and not in_range:
+                in_range = True
+                start_val = val
+            elif not pos and in_range:
+                in_range = False
+                end_val = val
+                ranges.append((start_val, end_val))
+
+        if in_range:
+            end_val = x_vals[-1]
+            ranges.append((start_val, end_val))
+
+        if ranges:
+            range_ottimale = "; ".join([f"[{round(lo,2)} - {round(hi,2)}]" for lo, hi in ranges])
+        else:
+            range_ottimale = "Nessuno individuato"
+
         summary.append({
             "Feature": feat,
             "Importanza media SHAP": round(mean_abs, 2),
@@ -677,8 +718,54 @@ def generate_shap_report(final_pipe, X_sample):
             "Osservazione": direzione,
             # "Relazione stimata": forma,
             # "Indicazione pratica": indicazione
+            "Range ottimale (media mobile)": range_ottimale
         })
 
     df_summary = pd.DataFrame(summary).sort_values("Importanza media SHAP", ascending=False)
+
+    # Plot solo per le top N feature
+    if img_dir is not None:
+        top_features = df_summary["Feature"].head(max_features_plot).tolist()
+        n_plots = len(top_features)
+        fig, axes = plt.subplots(n_plots, 1, figsize=(8, 4*n_plots), sharex=False)
+
+        if n_plots == 1:
+            axes = [axes]
+
+        for ax, feat in zip(axes, top_features):
+            data_tmp = pd.DataFrame({
+                "x": X_sample[feat],
+                "shap": shap_values[:, X_sample.columns.get_loc(feat)].values
+            }).sort_values("x")
+            roll_mean = data_tmp["shap"].rolling(window=window, center=True, min_periods=1).mean()
+
+            x_vals = data_tmp["x"].values
+            positive = (roll_mean.values > 0)
+
+            ax.plot(x_vals, roll_mean.values, label="Media mobile SHAP", color="blue")
+            ax.axhline(0, color="black", linestyle="--", linewidth=1)
+
+            # Evidenzia range ottimali
+            in_range = False
+            start_val = None
+            for val, pos in zip(x_vals, positive):
+                if pos and not in_range:
+                    in_range = True
+                    start_val = val
+                elif not pos and in_range:
+                    in_range = False
+                    end_val = val
+                    ax.axvspan(start_val, end_val, color="green", alpha=0.2)
+
+            if in_range:
+                end_val = x_vals[-1]
+                ax.axvspan(start_val, end_val, color="green", alpha=0.2)
+
+            ax.set_title(f"{feat} - range ottimali evidenziati")
+            ax.set_xlabel(feat)
+            ax.set_ylabel("Media mobile SHAP")
+            ax.legend()
+
+        save_plot("shap_optimal_ranges.png", img_dir)
 
     return df_summary, shap_values
