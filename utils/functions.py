@@ -96,25 +96,24 @@ def define_imputer_preprocessor(actual_features, random_state, use_simple_impute
 
         return preprocessor
     else:
-        from sklearn.experimental import enable_iterative_imputer
-        from sklearn.impute import SimpleImputer, IterativeImputer
+        from sklearn.impute import SimpleImputer
 
         # Liste di variabili per gruppo
-        median_features = [feat for feat in ["AgeDays", "WaterComp", "W/C"] if feat in actual_features]
-        mean_features = [feat for feat in ["CementComp", "CoarseAggregateComp", "FineAggregateComp", ] if feat in actual_features]
-        zero_features = [feat for feat in ["BlastFurnaceSlag", "FlyAshComp", "SuperplasticizerComp"] if feat in actual_features]
+        median_features = [feat for feat in ["W/C", "Binder", "AggT/Paste"] if feat in actual_features]
+        zero_features = [feat for feat in ["SCM%", "SuperPlasticizer/Binder"] if feat in actual_features]
+        mode_features = [feat for feat in ["AgeInDays_cat"] if feat in actual_features]
 
         # Trasformatori specifici
         median_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="median"))])
-        mean_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="mean"))])
         zero_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="constant", fill_value=0))])
+        mode_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="most_frequent"))])
 
         # ColumnTransformer con strategie diverse
         preprocessor = ColumnTransformer(
             transformers=[
                 ("median", median_transformer, median_features),
-                ("mean", mean_transformer, mean_features),
                 ("zero", zero_transformer, zero_features),
+                ("mode", mode_transformer, mode_features),
             ]
         )
         return preprocessor
