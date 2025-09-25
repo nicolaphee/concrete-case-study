@@ -61,11 +61,11 @@ def add_engineered_features(df,clipping=True):
         # "Binder", 
         "AggT", 
         "SCM", 
-        # "SCM%", 
+        # "SCM%", # 
         # "W/C",
         "Paste",
         # "AggT/Paste",
-        # "SuperPlasticizer/Binder",
+        # "SuperPlasticizer/Binder", #
         # "AgeInDays_cat"
     ]) 
 
@@ -238,6 +238,7 @@ def plot_performance_metrics(scores_df, results_df, out_prefix, img_dir):
     plt.figure(figsize=(10, 6))
     sns.boxplot(x="Model", y="RMSE", hue="Set", data=scores_df)
     sns.stripplot(x="Model", y="RMSE", hue="Set", data=scores_df, palette='dark:black', size=3, jitter=True)
+    plt.ylim(0)
     plt.xticks(rotation=45, ha="right")
     plt.title(f"Distribuzione RMSE per modello (CV folds)" if len(out_prefix) == 0 else f"Distribuzione RMSE per modello (CV folds) - {out_prefix}")
     handles, labels = plt.gca().get_legend_handles_labels()
@@ -248,8 +249,9 @@ def plot_performance_metrics(scores_df, results_df, out_prefix, img_dir):
     plt.figure(figsize=(10, 6))
     sns.boxplot(x="Model", y="MAE", hue="Set", data=scores_df)
     sns.stripplot(x="Model", y="MAE", hue="Set", data=scores_df, palette='dark:black', size=3, jitter=True)
+    plt.ylim(0)
     plt.xticks(rotation=45, ha="right")
-    plt.title(f"Distribuzione MAE per modello (CV folds) - {out_prefix}")
+    plt.title(f"Distribuzione MAE per modello (CV folds)" if len(out_prefix) == 0 else f"Distribuzione MAE per modello (CV folds) - {out_prefix}")
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles[0:2], labels[0:2], title="Set")
     save_plot(f"{out_prefix}boxplot_mae.png", img_dir)
@@ -258,8 +260,9 @@ def plot_performance_metrics(scores_df, results_df, out_prefix, img_dir):
     plt.figure(figsize=(10, 6))
     sns.boxplot(x="Model", y="R2", hue="Set", data=scores_df)
     sns.stripplot(x="Model", y="R2", hue="Set", data=scores_df, palette='dark:black', size=3, jitter=True)
+    plt.ylim(0,1)
     plt.xticks(rotation=45, ha="right")
-    plt.title(f"Distribuzione R² per modello (CV folds) - {out_prefix}")
+    plt.title(f"Distribuzione R² per modello (CV folds)" if len(out_prefix) == 0 else f"Distribuzione R² per modello (CV folds) - {out_prefix}")
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles[0:2], labels[0:2], title="Set")
     save_plot(f"{out_prefix}boxplot_r2.png", img_dir)
@@ -349,13 +352,13 @@ def plot_final_model_diagnostics(y_test, X_test, final_pipe, best_model_name, im
 # calcola pesi campione basati sui valori del target
 def compute_sample_weights(y):
     # first try
-    # # più peso ai valori alti del target
-    # w = np.log1p(y)        # crescita dolce, evita esplosioni
-    # return w / w.mean()    # normalizza attorno a 1
+    # più peso ai valori alti del target
+    w = np.log1p(y)        # crescita dolce, evita esplosioni
+    return w / w.mean()    # normalizza attorno a 1
 
-    # second try
-    # peso proporzionale al quadrato del target
-    w = (y / y.mean())**2
+    # # second try
+    # # peso proporzionale al quadrato del target
+    # w = (y / y.mean())**2
     return w
 
 
@@ -399,7 +402,7 @@ def wrap_with_target_transformer(model):
 
 
 def composite_score(scores):
-    alpha = 1  # peso per l'overfit gap
+    alpha = 0.5  # peso per l'overfit gap
     beta = 0  # peso per la deviazione standard 
     train_rmse_mean = scores["train_rmse"].mean()
     test_rmse_mean = scores["test_rmse"].mean()
