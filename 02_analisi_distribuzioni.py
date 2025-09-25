@@ -20,7 +20,7 @@ df_dropna.to_csv("dataset_dropna.csv", sep=";", index=False)
 print("Numero campioni, Numero campioni dropna, differenza:")
 print(df_raw.shape[0], df_dropna.shape[0], df_raw.shape[0] - df_dropna.shape[0])
 
-df = add_engineered_features(df_raw)
+df = add_engineered_features(df_raw, clipping=False)
 cols = df.columns
 
 # Distribuzioni delle variabili

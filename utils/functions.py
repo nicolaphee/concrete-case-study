@@ -29,7 +29,7 @@ from sklearn.ensemble import RandomForestRegressor
 ###  PREPROCESSING & FEATURES ENGINEERING   ###
 ###############################################
 
-def add_engineered_features(df):
+def add_engineered_features(df,clipping=True):
     df = df.copy()
     
     # Variabili di base
@@ -43,6 +43,14 @@ def add_engineered_features(df):
     df["W/C"] = np.where(df["Binder"] > 0, df["WaterComp"] / df["Binder"], np.nan)
     df["AggT/Paste"] = np.where(df["Paste"] > 0, df["AggT"] / df["Paste"], np.nan)
     df["SuperPlasticizer/Binder"] = np.where(df["Binder"] > 0, df["SuperplasticizerComp"] / df["Binder"], np.nan)
+
+    if clipping:
+        # clipping outliers
+        for col in ["Binder", "SCM%", "W/C", "AggT/Paste", "SuperPlasticizer/Binder"]:
+            if col in df.columns:
+                lower = df[col].quantile(0.05)
+                upper = df[col].quantile(0.95)
+                df[col] = df[col].clip(lower, upper)
 
     # Age categorizzata
     bins = [0, 7, 28, np.inf]

@@ -63,7 +63,7 @@ models = {
     # "XGBoost": XGBRegressor(n_estimators=1000, learning_rate=0.01, max_depth=4, random_state=random_state),
     # "LightGBM": LGBMRegressor(n_estimators=1000, learning_rate=0.05, max_depth=-1, random_state=random_state),
     # "LightGBM": LGBMRegressor(n_estimators=300, learning_rate=0.1, max_depth=-1, num_leaves=31, subsample=0.8, colsample_bytree=0.8, random_state=random_state),
-    # "CatBoost": CatBoostRegressor(n_estimators=500, learning_rate=0.03, depth=3, early_stopping_rounds=100, l2_leaf_reg=3, verbose=0, random_state=random_state),
+    "CatBoost": CatBoostRegressor(n_estimators=500, learning_rate=0.03, depth=3, early_stopping_rounds=100, l2_leaf_reg=3, verbose=0, random_state=random_state),
 
     # Rete neurale
     "MLP": Pipeline([("scaler", StandardScaler()), ("mlp", MLPRegressor(hidden_layer_sizes=(64, 32), max_iter=2000, random_state=random_state))])
@@ -117,6 +117,12 @@ param_grids = {
         "model__num_leaves": randint(15, 64),
         "model__subsample": uniform(0.7, 0.3),
         "model__colsample_bytree": uniform(0.7, 0.3),
+    },
+    "CatBoost": {
+        "model__n_estimators": randint(500, 1500),
+        "model__learning_rate": uniform(0.01, 0.1),
+        "model__depth": randint(3, 6),
+        "model__l2_leaf_reg": uniform(1, 10),
     },
     "MLP": {
         "model__mlp__hidden_layer_sizes": [(32,), (64,), (64, 32)],
