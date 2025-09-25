@@ -32,18 +32,19 @@ from sklearn.ensemble import RandomForestRegressor
 def add_engineered_features(df):
     df = df.copy()
     
-    df["Binder"] = df[["CementComp", "BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1)
-    df["AggT"] = df[["CoarseAggregateComp", "FineAggregateComp", ]].sum(axis=1)
-    df["SCM"] = df["BlastFurnaceSlag"] + df["FlyAshComp"]
-    df["SCM%"] = df["SCM"] / (df["Binder"] + 1e-6)
+    # Variabili di base
+    df["Binder"] = np.where(~df["CementComp"].isna(), df[["CementComp", "BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1), df["CementComp"] + df["BlastFurnaceSlag"] + df["FlyAshComp"])
+    df["AggT"] = df["CoarseAggregateComp"] + df["FineAggregateComp"]
+    df["SCM"] = df[["BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1)
+    df["Paste"] = np.where(~df["Binder"].isna(), df[["Binder", "WaterComp", "SuperplasticizerComp", ]].sum(axis=1), df["Binder"] + df["WaterComp"] + df["SuperplasticizerComp"])
 
-    df["W/C"] = df["WaterComp"] / (df["CementComp"] + df["SCM"] + 1e-6)
+    # Variabili ingegnerizzate
+    df["SCM%"] = np.where(df["Binder"] > 0, df["SCM"] / df["Binder"], np.nan)
+    df["W/C"] = np.where(df["Binder"] > 0, df["WaterComp"] / df["Binder"], np.nan)
+    df["AggT/Paste"] = np.where(df["Paste"] > 0, df["AggT"] / df["Paste"], np.nan)
+    df["SuperPlasticizer/Binder"] = np.where(df["Binder"] > 0, df["SuperplasticizerComp"] / df["Binder"], np.nan)
 
-    df["Paste"] = df["Binder"] + df["WaterComp"] + df["SuperplasticizerComp"]
-    df["AggT/Paste"] = df["AggT"] / (df["Paste"] + 1e-6)
-
-    df["SuperPlasticizer/Binder"] = df["SuperplasticizerComp"] / (df["Binder"] + 1e-6)
-
+    # Age categorizzata
     bins = [0, 7, 28, np.inf]
     labels = [0, 1, 2]
     df["AgeInDays_cat"] = pd.cut(df["AgeInDays"], bins=bins, labels=labels, right=True)
