@@ -15,7 +15,7 @@ from sklearn.utils.validation import has_fit_parameter
 
 from sklearn.metrics import make_scorer, root_mean_squared_error, mean_absolute_error, r2_score
 
-from sklearn.model_selection import train_test_split, cross_validate, KFold
+from sklearn.model_selection import cross_validate, KFold
 
 from sklearn.pipeline import Pipeline
 
@@ -23,7 +23,6 @@ from sklearn.model_selection import RandomizedSearchCV
 
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestRegressor
 
 ###############################################
 ###  PREPROCESSING & FEATURES ENGINEERING   ###
@@ -33,23 +32,15 @@ def add_engineered_features(df,clipping=True):
     df = df.copy()
     
     # Variabili di base
-    # df["Binder"] = np.where(~df["CementComp"].isna(), df[["CementComp", "BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1), df["CementComp"] + df["BlastFurnaceSlag"] + df["FlyAshComp"])
     df["Binder"] = df["CementComp"].fillna(df["CementComp"].mean()) + df["BlastFurnaceSlag"].fillna(0) + df["FlyAshComp"].fillna(0)
-    # df["AggT"] = df["CoarseAggregateComp"] + df["FineAggregateComp"]
     df["AggT"] = df["CoarseAggregateComp"].fillna(df["CoarseAggregateComp"].mean()) + df["FineAggregateComp"].fillna(df["FineAggregateComp"].mean())
-    # df["SCM"] = df[["BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1)
     df["SCM"] = df["BlastFurnaceSlag"].fillna(0) + df["FlyAshComp"].fillna(0)
-    # df["Paste"] = np.where(~df["Binder"].isna(), df[["Binder", "WaterComp", "SuperplasticizerComp", ]].sum(axis=1), df["Binder"] + df["WaterComp"] + df["SuperplasticizerComp"])
     df["Paste"] = df["Binder"].fillna(df["Binder"].median()) + df["WaterComp"].fillna(df["WaterComp"].median()) + df["SuperplasticizerComp"].fillna(0)
 
     # Variabili ingegnerizzate
-    # df["SCM%"] = np.where(df["Binder"] > 0, df["SCM"] / df["Binder"], np.nan)
     df["SCM%"] = df["SCM"] / (df["Binder"] + 1e-6)
-    # df["W/C"] = np.where(df["Binder"] > 0, df["WaterComp"] / df["Binder"], np.nan)
     df["W/C"] = df["WaterComp"].fillna(df["WaterComp"].median()) / (df["Binder"] + 1e-6)
-    # df["AggT/Paste"] = np.where(df["Paste"] > 0, df["AggT"] / df["Paste"], np.nan)
     df["AggT/Paste"] = df["AggT"] / (df["Paste"] + 1e-6)
-    # df["SuperPlasticizer/Binder"] = np.where(df["Binder"] > 0, df["SuperplasticizerComp"] / df["Binder"], np.nan)
     df["SuperPlasticizer/Binder"] = df["SuperplasticizerComp"].fillna(0) / (df["Binder"] + 1e-6)
 
     if clipping:
@@ -506,7 +497,6 @@ def cross_validate_models(
 
 
     # Tabella riassuntiva
-    # results_df = pd.DataFrame(results).sort_values("RMSE mean")
     results_df = pd.DataFrame(results).sort_values("Composite score")
     scores_df = pd.DataFrame(all_scores)
 
@@ -633,7 +623,6 @@ def generate_shap_report(final_pipe, X_sample, window=30, img_dir=None, max_feat
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
-    import os
 
     explainer = shap.Explainer(final_pipe.predict, X_sample)
     shap_values = explainer(X_sample)
