@@ -94,7 +94,7 @@ def drop_excluded_columns(X):
         "SCM%", # 
         # "W/C",
         # "AggT/Paste",
-        # "SuperPlasticizer/Binder", #
+        "SuperPlasticizer/Binder", #
         # "AgeInDays_cat"
         ])
     return X
