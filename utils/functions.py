@@ -33,16 +33,24 @@ def add_engineered_features(df,clipping=True):
     df = df.copy()
     
     # Variabili di base
-    df["Binder"] = np.where(~df["CementComp"].isna(), df[["CementComp", "BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1), df["CementComp"] + df["BlastFurnaceSlag"] + df["FlyAshComp"])
-    df["AggT"] = df["CoarseAggregateComp"] + df["FineAggregateComp"]
-    df["SCM"] = df[["BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1)
-    df["Paste"] = np.where(~df["Binder"].isna(), df[["Binder", "WaterComp", "SuperplasticizerComp", ]].sum(axis=1), df["Binder"] + df["WaterComp"] + df["SuperplasticizerComp"])
+    # df["Binder"] = np.where(~df["CementComp"].isna(), df[["CementComp", "BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1), df["CementComp"] + df["BlastFurnaceSlag"] + df["FlyAshComp"])
+    df["Binder"] = df["CementComp"].fillna(df["CementComp"].mean()) + df["BlastFurnaceSlag"].fillna(0) + df["FlyAshComp"].fillna(0)
+    # df["AggT"] = df["CoarseAggregateComp"] + df["FineAggregateComp"]
+    df["AggT"] = df["CoarseAggregateComp"].fillna(df["CoarseAggregateComp"].mean()) + df["FineAggregateComp"].fillna(df["FineAggregateComp"].mean())
+    # df["SCM"] = df[["BlastFurnaceSlag", "FlyAshComp", ]].sum(axis=1)
+    df["SCM"] = df["BlastFurnaceSlag"].fillna(0) + df["FlyAshComp"].fillna(0)
+    # df["Paste"] = np.where(~df["Binder"].isna(), df[["Binder", "WaterComp", "SuperplasticizerComp", ]].sum(axis=1), df["Binder"] + df["WaterComp"] + df["SuperplasticizerComp"])
+    df["Paste"] = df["Binder"].fillna(df["Binder"].median()) + df["WaterComp"].fillna(df["WaterComp"].median()) + df["SuperplasticizerComp"].fillna(0)
 
     # Variabili ingegnerizzate
-    df["SCM%"] = np.where(df["Binder"] > 0, df["SCM"] / df["Binder"], np.nan)
-    df["W/C"] = np.where(df["Binder"] > 0, df["WaterComp"] / df["Binder"], np.nan)
-    df["AggT/Paste"] = np.where(df["Paste"] > 0, df["AggT"] / df["Paste"], np.nan)
-    df["SuperPlasticizer/Binder"] = np.where(df["Binder"] > 0, df["SuperplasticizerComp"] / df["Binder"], np.nan)
+    # df["SCM%"] = np.where(df["Binder"] > 0, df["SCM"] / df["Binder"], np.nan)
+    df["SCM%"] = df["SCM"] / (df["Binder"] + 1e-6)
+    # df["W/C"] = np.where(df["Binder"] > 0, df["WaterComp"] / df["Binder"], np.nan)
+    df["W/C"] = df["WaterComp"].fillna(df["WaterComp"].median()) / (df["Binder"] + 1e-6)
+    # df["AggT/Paste"] = np.where(df["Paste"] > 0, df["AggT"] / df["Paste"], np.nan)
+    df["AggT/Paste"] = df["AggT"] / (df["Paste"] + 1e-6)
+    # df["SuperPlasticizer/Binder"] = np.where(df["Binder"] > 0, df["SuperplasticizerComp"] / df["Binder"], np.nan)
+    df["SuperPlasticizer/Binder"] = df["SuperplasticizerComp"].fillna(0) / (df["Binder"] + 1e-6)
 
     if clipping:
         # clipping outliers
@@ -73,14 +81,21 @@ def add_engineered_features(df,clipping=True):
 
 def drop_excluded_columns(X):
     X = X.drop(columns=[
-        "CementComp",
+        # "CementComp",
         "WaterComp",
         "BlastFurnaceSlag",
         "FlyAshComp",
-        "SuperplasticizerComp",
+        # "SuperplasticizerComp",
         "CoarseAggregateComp",
         "FineAggregateComp",
         "AgeInDays",
+        # 
+        # "Binder", 
+        "SCM%", # 
+        # "W/C",
+        # "AggT/Paste",
+        # "SuperPlasticizer/Binder", #
+        # "AgeInDays_cat"
         ])
     return X
 
@@ -108,7 +123,7 @@ def define_imputer_preprocessor(actual_features, random_state, use_simple_impute
 
         # Liste di variabili per gruppo
         median_features = [feat for feat in ["AgeDays", "WaterComp", "W/C", "Binder", "AggT/Paste"] if feat in actual_features]
-        mean_features = [feat for feat in ["CementComp", "CoarseAggregateComp", "FineAggregateComp"]]
+        mean_features = [feat for feat in ["CementComp", "CoarseAggregateComp", "FineAggregateComp"]  if feat in actual_features]
         zero_features = [feat for feat in ["BlastFurnaceSlag", "FlyAshComp", "SuperplasticizerComp", "SCM%", "SuperPlasticizer/Binder"] if feat in actual_features]
         mode_features = [feat for feat in ["AgeInDays_cat"] if feat in actual_features]
 
@@ -405,7 +420,7 @@ def wrap_with_target_transformer(model):
 
 
 def composite_score(scores):
-    alpha = 0.5  # peso per l'overfit gap
+    alpha = 0  # peso per l'overfit gap
     beta = 0  # peso per la deviazione standard 
     train_rmse_mean = scores["train_rmse"].mean()
     test_rmse_mean = scores["test_rmse"].mean()

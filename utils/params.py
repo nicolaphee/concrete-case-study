@@ -5,5 +5,5 @@ apply_feature_eng = True
 log_transform_target = False  # se True, applica log-transform al target
 sample_weighting = False  # se True, usa pesi campione
 use_simple_imputer = False
-use_clipping = True
+use_clipping = False
 

@@ -40,37 +40,37 @@ models = {
     "BayesianRidge": BayesianRidge(),
 
     # Non lineari classici
-    # "SVR": Pipeline([("scaler", StandardScaler()), ("svr", SVR(C=10, epsilon=0.1))]),
+    "SVR": Pipeline([("scaler", StandardScaler()), ("svr", SVR(C=10, epsilon=0.1))]),
     # "SVR": Pipeline([("scaler", StandardScaler()), ("svr", SVR(C=1, epsilon=0.2))]),
     # "SVR": Pipeline([("scaler", StandardScaler()), ("svr", SVR(C=0.1, epsilon=0.3))]),
 
     # Tree-based
-    # "RandomForest": RandomForestRegressor(n_estimators=500, max_depth=None, random_state=random_state),
-    "RandomForest": RandomForestRegressor(n_estimators=500, max_depth=15, min_samples_leaf=5, random_state=random_state),
+    "RandomForest": RandomForestRegressor(n_estimators=500, max_depth=None, random_state=random_state),
+    # "RandomForest": RandomForestRegressor(n_estimators=500, max_depth=15, min_samples_leaf=5, random_state=random_state),
     # "RandomForest": RandomForestRegressor(n_estimators=500, max_depth=10, min_samples_leaf=7, random_state=random_state),
-    # "ExtraTrees": ExtraTreesRegressor(n_estimators=500, random_state=random_state),
-    "ExtraTrees": ExtraTreesRegressor(n_estimators=500, max_depth=15, min_samples_leaf=5, random_state=random_state),
+    "ExtraTrees": ExtraTreesRegressor(n_estimators=500, random_state=random_state),
+    # "ExtraTrees": ExtraTreesRegressor(n_estimators=500, max_depth=15, min_samples_leaf=5, random_state=random_state),
     # "ExtraTrees": ExtraTreesRegressor(n_estimators=500, max_depth=10, min_samples_leaf=7, random_state=random_state),
     # "ExtraTrees": ExtraTreesRegressor(n_estimators=500, max_depth=10, min_samples_leaf=7, min_samples_split=7, random_state=random_state),
-    # "GradientBoosting": GradientBoostingRegressor(n_estimators=500, learning_rate=0.05, random_state=random_state),
-    "GradientBoosting": GradientBoostingRegressor(n_estimators=500, max_depth=5, min_samples_leaf=5, learning_rate=0.05, random_state=random_state),
+    "GradientBoosting": GradientBoostingRegressor(n_estimators=500, learning_rate=0.05, random_state=random_state),
+    # "GradientBoosting": GradientBoostingRegressor(n_estimators=500, max_depth=5, min_samples_leaf=5, learning_rate=0.05, random_state=random_state),
     # "GradientBoosting": GradientBoostingRegressor(n_estimators=500, max_depth=5, min_samples_leaf=7, learning_rate=0.05, random_state=random_state),
     # "GradientBoosting": GradientBoostingRegressor(n_estimators=500, max_depth=5, min_samples_leaf=7, min_samples_split=7, learning_rate=0.05, random_state=random_state),
 
     # Boosting avanzati
-    # "XGBoost": XGBRegressor(n_estimators=1000, learning_rate=0.05, max_depth=6, random_state=random_state),
-    "XGBoost": XGBRegressor(n_estimators=1000, learning_rate=0.025, max_depth=5, random_state=random_state),
+    "XGBoost": XGBRegressor(n_estimators=1000, learning_rate=0.05, max_depth=6, random_state=random_state),
+    # "XGBoost": XGBRegressor(n_estimators=1000, learning_rate=0.025, max_depth=5, random_state=random_state),
     # "XGBoost": XGBRegressor(n_estimators=1000, learning_rate=0.01, max_depth=4, random_state=random_state),
     # "LightGBM": LGBMRegressor(n_estimators=1000, learning_rate=0.05, max_depth=-1, random_state=random_state),
     # "LightGBM": LGBMRegressor(n_estimators=300, learning_rate=0.1, max_depth=-1, num_leaves=31, subsample=0.8, colsample_bytree=0.8, random_state=random_state),
     # "CatBoost": CatBoostRegressor(n_estimators=1000, learning_rate=0.05, depth=6, verbose=0, random_state=random_state),
-    "CatBoost": CatBoostRegressor(n_estimators=1000, learning_rate=0.025, depth=5, early_stopping_rounds=100, verbose=0, random_state=random_state),
+    # "CatBoost": CatBoostRegressor(n_estimators=1000, learning_rate=0.025, depth=5, early_stopping_rounds=100, verbose=0, random_state=random_state),
     # "CatBoost": CatBoostRegressor(n_estimators=1000, learning_rate=0.01, depth=4, early_stopping_rounds=100, verbose=0, random_state=random_state),
     # "CatBoost": CatBoostRegressor(n_estimators=500, learning_rate=0.03, depth=3, early_stopping_rounds=100, l2_leaf_reg=3, verbose=0, random_state=random_state),
 
     # Rete neurale
-    # "MLP": Pipeline([("scaler", StandardScaler()), ("mlp", MLPRegressor(hidden_layer_sizes=(64, 32), max_iter=2000, random_state=random_state))])
-    "MLP": Pipeline([("scaler", StandardScaler()), ("mlp", MLPRegressor(hidden_layer_sizes=(32, 16), max_iter=2000, alpha=0.001, early_stopping=True, validation_fraction=0.2, random_state=random_state))]),
+    "MLP": Pipeline([("scaler", StandardScaler()), ("mlp", MLPRegressor(hidden_layer_sizes=(64, 32), max_iter=2000, random_state=random_state))])
+    # "MLP": Pipeline([("scaler", StandardScaler()), ("mlp", MLPRegressor(hidden_layer_sizes=(32, 16), max_iter=2000, alpha=0.001, early_stopping=True, validation_fraction=0.2, random_state=random_state))]),
     # "MLP": Pipeline([("scaler", StandardScaler()), ("mlp", MLPRegressor(hidden_layer_sizes=(32, 16), max_iter=2000, alpha=0.01, early_stopping=True, validation_fraction=0.2, random_state=random_state))]),
 }
 
