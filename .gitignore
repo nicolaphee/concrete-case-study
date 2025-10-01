@@ -12,3 +12,8 @@
 # Models and models info
 *.pkl
 catboost_info/*
+mlruns/*
+
+# Python cache
+__pycache__/
+*.pyc

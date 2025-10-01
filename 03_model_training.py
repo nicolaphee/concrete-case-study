@@ -6,6 +6,7 @@ from utils.models import models, param_grids
 from utils.params import random_state, n_iter
 from utils.params import apply_feature_eng, use_clipping
 from utils.params import log_transform_target, sample_weighting, use_simple_imputer
+from utils.params import mlflow_logging
 
 import pandas as pd
 import os
@@ -15,6 +16,12 @@ from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_err
 import joblib
 
 import tabulate
+
+if mlflow_logging:
+    import mlflow   
+    import mlflow.sklearn
+
+    mlflow.set_experiment("regressor_experiments")
 
 img_dir = "03_model_results"
 os.makedirs(img_dir, exist_ok=True)
@@ -88,6 +95,7 @@ results_df, scores_df = cross_validate_models(
     preprocessor=preprocessor,
     composite_score=composite_score,
     sample_weighting=sample_weighting,
+    mlflow_logging=mlflow_logging,
 )
 results_df.to_csv(os.path.join(img_dir, "models_summary.csv"), index=False)
 print(results_df)
@@ -119,7 +127,8 @@ best_pipelines = tune_hyperparameters(
     cv=cv,
     n_iter=n_iter,
     random_state=random_state,
-    sample_weighting=sample_weighting
+    sample_weighting=sample_weighting,
+    mlflow_logging=mlflow_logging,
 )
 
 
@@ -133,6 +142,7 @@ results_tuned_df, scores_tuned_df = cross_validate_models(
     preprocessor=preprocessor,
     composite_score=composite_score,
     sample_weighting=sample_weighting,
+    mlflow_logging=mlflow_logging,
 )
 results_tuned_df.to_csv(os.path.join(img_dir, "models_summary.csv"), index=False)
 print(results_tuned_df)
@@ -185,6 +195,20 @@ print(tabulate.tabulate(final_performance_df, headers="keys", tablefmt="pretty")
 
 final_performance_df.to_csv(os.path.join(img_dir, "final_performance.csv"), index=False)
 
+if mlflow_logging:
+    with mlflow.start_run(run_name=f"final_model", nested=True):
+        mlflow.log_param("best_model", best_model_name)
+        mlflow.log_metrics({
+            "rmse_test": rmse_test,
+            "mae_test": mae_test,
+            "r2_test": r2_test,
+            "mae_test_rel": mae_test_rel,
+            "rmse_trainval": rmse_trainval,
+            "mae_trainval": mae_trainval,
+            "r2_trainval": r2_trainval,
+            "mae_trainval_rel": mae_trainval_rel,
+        })
+        mlflow.sklearn.log_model(final_pipe, f"{best_model_name}_final")
 
 # ---------------------------
 # 10. Error analysis

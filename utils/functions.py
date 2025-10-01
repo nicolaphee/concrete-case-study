@@ -431,6 +431,7 @@ def cross_validate_models(
     preprocessor,
     composite_score,
     sample_weighting: bool = False,
+    mlflow_logging: bool = False,
 ):
     """
     Esegue cross-validation sui modelli forniti, calcolando metriche di performance e overfitting.
@@ -477,6 +478,25 @@ def cross_validate_models(
             "RMSE std train": train_rmse_std,
             "Composite score": composite_score(scores),
         })
+
+        if mlflow_logging:
+            import mlflow
+            
+            # MLflow logging
+            with mlflow.start_run(run_name=f"cv_{name}", nested=True):
+                mlflow.log_param("Model", name)
+                mlflow.log_metrics({
+                    "MAE mean": scores["test_mae"].mean(),
+                    "MAE std": scores["test_mae"].std(),
+                    "R2 mean": scores["test_r2"].mean(),
+                    "R2 std": scores["test_r2"].std(),
+                    "RMSE mean": test_rmse_mean,
+                    "RMSE std": test_rmse_std,
+                    "RMSE mean train": train_rmse_mean,
+                    "RMSE std train": train_rmse_std,
+                    "Composite score": composite_score(scores),
+                })
+
         
         # Salva tutte le fold per grafici
         for i in range(cv.get_n_splits()):
@@ -517,11 +537,15 @@ def tune_hyperparameters(
     n_iter: int,
     random_state: int,
     sample_weighting: bool = False,
+    mlflow_logging: bool = False,
 ):
     """
     Esegue RandomizedSearchCV sui modelli top selezionati.
     Restituisce i migliori modelli e un sommario delle performance sul validation set.
     """
+    if mlflow_logging:
+        import mlflow
+    
     best_pipelines = {}
     for name in top_models:
         print(f"========= Hyperparameter tuning of {name}...")
@@ -551,6 +575,14 @@ def tune_hyperparameters(
 
         print(f"Best params per {name}: {search.best_params_}")
         print(f"Best CV RMSE: {-search.best_score_:.3f}")
+
+        if mlflow_logging:
+            
+            # MLflow logging
+            with mlflow.start_run(run_name=f"tuning_{name}", nested=True):
+                mlflow.log_params(search.best_params_)
+                mlflow.log_metric("best_cv_rmse", -search.best_score_)
+                mlflow.sklearn.log_model(search.best_estimator_, f"{name}_tuned_model")
 
         best_pipelines[name] = search.best_estimator_
 
